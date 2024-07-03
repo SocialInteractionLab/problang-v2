@@ -172,8 +172,9 @@ return {PP_speaker, PP_listener, alpha, c}
 ## receive samples from WebPPL
 ##########################
 
-posteriorSamples <- webppl(program_code = 'program_code',
-  model_var = "dataAnalysis",
+posteriorSamples <- webppl(
+  program_code = program_code,
+  model_var = "posterior_predictive",
   inference_opts = list(method = "MCMC", kernel = list(
     HMC = list(stepSize = 0.0375, steps = 5)
   ), samples = 1000, burn = 1000, lag = 2, verbose = T),

@@ -74,7 +74,7 @@ _.includes(obj, utterance)
 // literal listener
 var literalListener = function(utterance){
 Infer({model: function(){
-var obj = uniformDraw(states);
+var obj = objectPrior();
 condition(meaning(utterance, obj))
 return obj
 }})
