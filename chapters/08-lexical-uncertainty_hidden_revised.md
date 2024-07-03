@@ -1,7 +1,8 @@
 ---
 layout: chapter
-title: Reasoning about literal meanings
-description: "Lexical uncertainty"
+title: Reasoning about semantic meaning
+description: "Lexical uncertainty and intended lexical meanings"
+hidden: true
 ---
 
 ### Chapter 8: Lexical uncertainty and intended lexical meanings

@@ -19,8 +19,9 @@ Assume a world with three apples; zero, one, two, or three of those apples may b
 
 ~~~~
 // possible states of the world
+var states = [0, 1, 2, 3]
 var statePrior = function() {
-  return uniformDraw([0, 1, 2, 3])
+  return uniformDraw(states)
 }
 statePrior() // sample a state
 ~~~~
@@ -51,14 +52,15 @@ display([utt, meaning(3)]) // apply meaning to state = 3
 
 > **Exercise:** Interpret the output of the above code box. (Run several times.)
 
-Putting state priors and semantics together, we can implement the behavior of the literal listener. If state priors are uniform, the literal listener will interpret messages by assigning probability 0 to each state of which the observed message is false, and the same uniform probability to each true state. Verify this with the following code.
+Putting state priors and semantics together, we can implement the behavior of the literal listener. The literal listener will interpret messages by assigning probability 0 to each state where the observed message is false, and the same uniform probability to each true state.
 
 ~~~~
 // code for state prior and semantics as before
 ///fold:
 // possible states of the world
+var states = [0, 1, 2, 3]
 var statePrior = function() {
-  return uniformDraw([0, 1, 2, 3])
+  return uniformDraw(states)
 };
 
 // possible utterances
@@ -77,7 +79,7 @@ var literalMeanings = {
 // literal listener
 var literalListener = function(utt) {
   return Infer({model: function(){
-    var state = statePrior()
+    var state = uniformDraw(states)
     var meaning = literalMeanings[utt]
     condition(meaning(state))
     return state
@@ -88,19 +90,28 @@ display("literal listener's interpretation of 'some':")
 viz(literalListener("some"))
 ~~~~
 
-Next, let's have a look at the speaker's behavior. Intuitively put, in the vanilla RSA model the speaker will never choose a false message; the speaker chooses among the true utterances by prioritizing those with the strongest meaning (see [appendix](app-02-utilities.html)). Verify this with the following code.
+Next, let's have a look at the speaker's behavior. Intuitively put, in the vanilla RSA model, the speaker will never choose a false message; the speaker chooses among the true utterances by prioritizing those with the strongest meaning (see [Appendix Chapter 2](app-02-utilities.html)). You can verify this behavior with the following code.
 
 ~~~~
 // code for state prior, semantics and literal listener as before
 ///fold:
 // possible states of the world
+var states = [0, 1, 2, 3]
 var statePrior = function() {
-  return uniformDraw([0, 1, 2, 3])
+  return uniformDraw(states)
 }
 
 // possible utterances
 var utterancePrior = function() {
   return uniformDraw(['all', 'some', 'none'])
+}
+
+// cost function for utterances
+var cost = function(utterance){
+  utterance == "all" ? 1 :
+  utterance == "some" ? 1 :
+  utterance == "none" ? 1 :
+  0
 }
 
 // meaning function to interpret the utterances
@@ -113,7 +124,7 @@ var literalMeanings = {
 // literal listener
 var literalListener = function(utt) {
   return Infer({model: function(){
-    var state = statePrior()
+    var state = uniformDraw(states)
     var meaning = literalMeanings[utt]
     condition(meaning(state))
     return state
@@ -128,7 +139,7 @@ var alpha = 1
 var speaker = function(state) {
   return Infer({model: function(){
     var utt = utterancePrior()
-    factor(alpha * literalListener(utt).score(state))
+    factor(alpha * (literalListener(utt).score(state) - cost(utt)))
     return utt
   }})
 }
@@ -138,17 +149,26 @@ viz(speaker(3))
 
 ~~~~
 
-With this knowledge about the communication scenario---crucially, the availability of the "all" alternative utterance---a pragmatic listener is able to infer from the "some" utterance that a state in which the speaker would not have used the "all" utterance is more likely than one in which she would. We can verify this with the following complete code of a vanilla RSA model for scalar implicatures. (Technical note: Below, `cache` is used to save the results of the various Bayesian inferences being performed. This is used for computational efficiency when dealing with nested inferences.)
+With this knowledge about the communication scenario---crucially, the availability of the "all" alternative utterance---a pragmatic listener is able to infer from the "some" utterance that a state in which the speaker would not have used the "all" utterance is more likely than one in which she would. The following code---a complete vanilla RSA model for scalar implicatures---implements the pragmatic listener. (Technical note: Below, `cache` is used to save the results of the various Bayesian inferences being performed, which increases computational efficiency when dealing with nested inferences.)
 
 ~~~~
 // possible states of the world
+var states = [0, 1, 2, 3]
 var statePrior = function() {
-  return uniformDraw([0, 1, 2, 3])
+  return uniformDraw(states)
 }
 
 // possible utterances
 var utterancePrior = function() {
   return uniformDraw(['all', 'some', 'none'])
+}
+
+// cost function for utterances
+var cost = function(utterance){
+  utterance == "all" ? 1 :
+  utterance == "some" ? 1 :
+  utterance == "none" ? 1 :
+  0
 }
 
 // meaning function to interpret the utterances
@@ -161,7 +181,7 @@ var literalMeanings = {
 // literal listener
 var literalListener = cache(function(utt) {
   return Infer({model: function(){
-    var state = statePrior()
+    var state = uniformDraw(states)
     var meaning = literalMeanings[utt]
     condition(meaning(state))
     return state
@@ -175,7 +195,7 @@ var alpha = 1
 var speaker = cache(function(state) {
   return Infer({model: function(){
     var utt = utterancePrior()
-    factor(alpha * literalListener(utt).score(state))
+    factor(alpha * (literalListener(utt).score(state) - cost(utt)))
     return utt
   }})
 })
@@ -219,7 +239,7 @@ number = "1"
 width="500px" 
 %}
 
-Towards an implementation, let's introduce some terminology and some notation. The **total number** of apples is $$n$$ of which $$0 \le s \le n$$ are red. We call $$s$$ the **state** of the world. The speaker knows $$n$$ (as does the listener) but the speaker might not know the true state $$s$$, because she might only observe some of the apples' colors. Concretely, the speaker might only have **access** to $$0 \le a \le n$$ apples, of which the number of red apples **observed** by the speaker is $$0 \le o \le a$$. The model of reft:GoodmanStuhlmuller2013Impl assumes that the listener knows $$a$$. We will first look at this model, and then generalize to the case where the listener must also infer $$a$$ from the speaker's utterance.
+Towards an implementation, let's introduce some terminology and some notation. The **total number** of apples is $$n$$, of which $$0 \le s \le n$$ are red. We call $$s$$ the **state** of the world. The speaker knows $$n$$ (as does the listener) but the speaker might not know the true state $$s$$, because she might only observe some of the apples' colors. Concretely, the speaker might only have seen (i.e., **accessed**) some of the apples; of those apples that were accessed, the speaker might have **observed** that some of them were red. The model of reft:GoodmanStuhlmuller2013Impl assumes that the listener knows how many apples the speaker saw (i.e., the speaker's access $$a$$). We will first look at this model, and then generalize to the case where the listener must also infer $$a$$ from the speaker's utterance.
 
 ##### The extended Scalar Implicature model 
 
@@ -232,12 +252,12 @@ where
 $$P_{S_{1}}(u\mid s, a) = \sum_o P_{S_{1}}(u \mid o, a) \cdot P(o
 \mid s, a)$$
 
-is obtained from marginalizing out the number of observations.
+is obtained from marginalizing out the possible observations $$o$$.
 
 
 ~~~~
 // pragmatic listener
-var pragmaticListener = cache(function(access,utt) {
+var pragmaticListener = cache(function(utt,access) {
   return Infer({model: function(){
     var state = statePrior()
     observe(speaker(access,state),utt)
@@ -246,7 +266,7 @@ var pragmaticListener = cache(function(access,utt) {
 });
 ~~~~
 
-We have to enrich the speaker model: first the speaker makes an observation $$o$$ of the true state $$s$$ with access $$a$$. On the basis of the observation and access, the speaker infers the true state.
+We have to enrich the speaker model: first the speaker makes an observation $$o$$ of the true state $$s$$ with access $$a$$. On the basis of this observation, the speaker infers $$s$$.
 
 ~~~~
 ///fold:
@@ -288,7 +308,7 @@ viz.auto(repeat(1000,function() {
 
 > **Exercise:** See what happens when you change the red apple base rate.
 
-Given potential uncertainty about the world state $$s$$, the speaker's probabilistic production rule has to be adapted from the simpler formulation in [Chapter I](01-introduction.html). It is now no longer a function of the true $$s$$ (because it might not be known) but of the epistemic state of the speaker more generally. In the case at hand, the speaker's epistemic state $$P_{S_{1}}(\cdot \mid o,a) \in \Delta(S)$$ is given by access $$a$$ and observation $$o$$, as in the belief model implemented just above.
+Given potential uncertainty about the world state $$s$$, the speaker's probabilistic production rule has to be adapted from the simpler formulation in [Chapter I](01-introduction.html). This rule is now no longer a function of the true $$s$$ (because, with limited access, the speaker might not know $$s$$), but of what the speaker *believes* $$s$$ to be (i.e., the speaker's epistemic state, given the speaker's access). In the case at hand, the speaker's epistemic state $$P_{S_{1}}(\cdot \mid o,a) \in \Delta(S)$$ is given by access $$a$$ and observation $$o$$, as in the belief model implemented just above.
 
 Even if the speaker is uncertain about the state $$s$$ after some partial observation $$o$$ and $$a$$, she would still seek to choose an utterance that maximizes information flow. There are several ways in which we can combine speaker uncertainty (in the form of a probability distribution over $$s$$) and the speaker's utility function, which remains unchanged from what we had before, so that utterances are chosen to minimize cost and maximize informativity:
 
@@ -306,7 +326,7 @@ var speaker = cache(function(access,state) {
   return Infer({model: function(){
     var utterance = utterancePrior()
     var beliefState = belief(state,access)
-    factor(alpha * literalListener(utterance).score(beliefState))
+    factor(alpha * (literalListener(utterance).score(beliefState) - cost(utterance)))
     return utterance
   }})
 });
@@ -323,6 +343,16 @@ var numTrue = function(state) {
   }
   return sum(map(fun,state))
 }
+
+// possible states of the world
+var states = [[true,true,true], 
+              [false,true,true], 
+              [true,false,true],
+              [true,true,false],    
+              [false,false,true],
+              [false,true,false],
+              [true,false,false],
+              [false,false,false]]
 ///
 
 // Here is the code from the Goodman and Stuhlmüller speaker-access SI model
@@ -351,6 +381,14 @@ var utterancePrior = function() {
   uniformDraw(['all','some','none'])
 }
 
+// cost function for utterances
+var cost = function(utterance){
+  utterance == "all" ? 1 :
+  utterance == "some" ? 1 :
+  utterance == "none" ? 1 :
+  0
+}
+
 // meaning funtion to interpret utterances
 var literalMeanings = {
   all: function(state) { return all(function(s){s}, state); },
@@ -361,7 +399,7 @@ var literalMeanings = {
 // literal listener
 var literalListener = cache(function(utt) {
   return Infer({model: function(){
-    var state = statePrior()
+    var state = uniformDraw(states)
     var meaning = literalMeanings[utt]
     condition(meaning(state))
     return state
@@ -374,15 +412,15 @@ var alpha = 1
 // pragmatic speaker
 var speaker = cache(function(access,state) {
   return Infer({model: function(){
-    var utt = utterancePrior()
+    var utterance = utterancePrior()
     var beliefState = belief(state,access)
-    factor(alpha * literalListener(utt).score(beliefState))
-    return utt
+    factor(alpha * (literalListener(utterance).score(beliefState) - cost(utterance)))
+    return utterance
   }})
 });
 
 // pragmatic listener
-var pragmaticListener = cache(function(access,utt) {
+var pragmaticListener = cache(function(utt,access) {
   return Infer({model: function(){
     var state = statePrior()
     observe(speaker(access,state),utt)
@@ -391,16 +429,16 @@ var pragmaticListener = cache(function(access,utt) {
 });
 
 print("pragmatic listener for a full-access speaker:")
-viz.auto(pragmaticListener([true,true,true],'some'))
+viz.auto(pragmaticListener('some',[true,true,true]))
 print("pragmatic listener for a partial-access speaker:")
-viz.auto(pragmaticListener([true,true,false],'some'))
+viz.auto(pragmaticListener('some',[true,true,false]))
 
 ~~~~
 
 > **Exercises:** 
 > 1. Check the predictions for the other possible knowledge states.
 > 2. Compare the full-access predictions with the predictions from the simpler scalar implicature model above. Why are the predictions of the two models different? How can you get the model predictions to converge? (Hint: first try to align the predictions of the simpler model with those of the knowledge model, then try aligning the predictions of the knowledge model with those of the simpler model.)
-> 3. Notice that the listener assigns some positive probability to the true state being 0, even when it is shared knowledge that the speaker saw 2 apples and said "some". Why is this puzzling? (Think about the Gricean Maxim of Quality demanding that speakers not say what they lack sufficient evidence for!) Look at the speaker choice function implemented here and explain why this is happening.
+> 3. Notice that the listener assigns some positive probability to the true state being 0, even when it is shared knowledge that the speaker saw 2 apples and said "some". Why is this puzzling? (Think about the Gricean Maxim of Quality demanding that speakers not say what they lack sufficient evidence for.) Look at the speaker choice function implemented above and explain why this behavior takes place.
 
 We have seen how the RSA framework can implement the mechanism whereby utterance interpretations are strengthened. Through an interaction between what was said, what could have been said, and what all of those things literally mean, the model delivers scalar implicature. And by taking into account awareness of the speaker's knowledge, the model successfully *blocks* implicatures in those cases where listeners are unlikely to access them. 
 
@@ -459,7 +497,7 @@ var statePrior = function() {
   binomial({p: base_rate_red, n: total_apples})
 }
 
-viz(Infer({model: statePrior, method: "forward", samples: 5000}))
+Infer(statePrior)
 ~~~~
 
 > Exercise: Play around with `total_apples` and `base_rate_red` to get good intuitions about the state prior for different parameters. (For which values of `total_apples` and `base_rate_red` would it be better to take more samples for a more precise visualization?)
@@ -497,9 +535,7 @@ var hypergeometricSample = function(N,K,n) {
 }
 
 var total_apples = 3, state = 2, access = 1;
-viz(Infer({model: function() {hypergeometricSample(total_apples, state, access)},
-           method: "forward",
-           samples: 2500}))
+Infer(function() {hypergeometricSample(total_apples, state, access)})
 ~~~~
 
 The prior over states and the hypergeometric distribution combine to give the speaker's beliefs about world state $$s$$ given access $$a$$ and observation $$o$$, using Bayes rule (and knowledge of the total number of apples $$n$$):

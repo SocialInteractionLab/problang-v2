@@ -6,7 +6,7 @@ description: "Generic language"
 
 ### Chapter 7: Generic language
 
-Consider the following sentences:
+<!-- Consider the following sentences:
 
 1. All swans are white.
 2. Most swans are white.
@@ -26,57 +26,65 @@ var meaningFn = literalMeanings["generic"]
 meaningFn(0.6, 0.5)
 ~~~~
 
-> **Exercise**: Try out the different meaning functions with different inputs to make sure you understand threshold-semantics. What should `theta` be?
+> **Exercise**: Try out the different meaning functions with different inputs to make sure you understand threshold-semantics. What should `theta` be? -->
 
-### The logical problem
+#### The logical problem
 
-Generic language (e.g., *Swans are white.*) is a simple and ubiquitous way to communicate generalizations about categories.  Linguists, philosophers, and psychologists have scratched their collective heads for decades, trying to figure out what makes a generic sentence true or false. At first glance, generics feel like universally-quantified statements, as in *All swans are white*.  Unlike universals, however, generics are resilient to counter-examples (e.g., *Swans are white* even though there are black swans).  Our intuitions then fall back to something more vague like *Swans, in general, are white* because indeed most swans are white. But mosquitos, in general, do not carry malaria, yet everyone agrees *Mosquitos carry malaria*.
+Generic language (e.g., *Swans are white.*) is a simple and ubiquitous way to communicate generalizations about categories.  Linguists, philosophers, and psychologists have scratched their collective heads for decades, trying to figure out what makes a generic sentence true or false. At first glance, generics feel like universally-quantified statements; *Swans are white* seems similar to *All swans are white*.  Unlike universal quantification, however, generics are resilient to counter-examples (e.g., *Swans are white* even though there are black swans).  Our intuitions then fall back to something more vague: *Swans, in general, are white* because indeed most swans are white. Thinking along these lines might lead us to characterize the truth conditions of generics in terms of the **prevalence** of a property in some **kind**. Viewed in this way, a generic statement would receive a meaning in line with other quantificational statements, as in the following code box. The trick lies in determing the appropriate threshold for a generic statement. Swans, in general, are white, but mosquitos, in general, do not carry malaria, yet people agree that *Mosquitos carry malaria*.
 
-Indeed, it appears that any truth conditions stated in terms of how common the property is within the kind violates intuitions. Consider the birds: for a bird, being female practically implies you will lay eggs (the properties are present in the same proportion), yet we say things like *Birds lay eggs* and we do not say things like *Birds are female*.
+~~~~
+var literalMeanings = {
+  some: function(prevalence){ prevalence > 0 },
+  most: function(prevalence){ prevalence > 0.5 },
+  all: function(prevalence){ prevalence == 1 },
+  generic: function(prevalence, theta){ prevalence > theta }
+}
+var meaningFn = literalMeanings["generic"]
+meaningFn(0.6, 0.5)
+~~~~
+
+It seems doubtful that we would ever be able to capture the meaning of generics in terms of how prevalent a property is (e.g., whiteness) within the relevant kind (e.g., swans). Consider the birds: for a bird, being female practically implies you will lay eggs (the properties are present in the same proportion), yet we say things like *Birds lay eggs* but not *Birds are female*.
 
 ~~~~
 var theta = 0.49
-var generic = function(x){ x > theta }
-var number_of_birds_that_lay_eggs = 0.5;
-var number_of_birds_that_are_female = 0.5;
-var number_of_mosquitos_that_carry_malaria = 0.02;
+var generic = function(prevalence){ prevalence > theta }
+var percentage_of_birds_that_lay_eggs = 0.5;
+var percentage_of_birds_that_are_female = 0.5;
+var percentage_of_mosquitos_that_carry_malaria = 0.02;
 
-display("Birds lay eggs is true ? " + generic(number_of_birds_that_lay_eggs))
-display("Birds are female is true ? " + generic(number_of_birds_that_are_female))
-display("Mosquitos carry malaria is true ? " + generic(number_of_mosquitos_that_carry_malaria))
-''
+display("Birds lay eggs? " + generic(percentage_of_birds_that_lay_eggs))
+display("Birds are female? " + generic(percentage_of_birds_that_are_female))
+display("Mosquitos carry malaria? " + generic(percentage_of_mosquitos_that_carry_malaria))
+
 ~~~~
 
-reft:tessler2016manuscript propose that the core meaning of a generic statement is in fact a threshold as in `generic` above, but underspecified (listener has uncertainty about `theta`).
-Then we can use the RSA core to resolve a more precise meaning in context.
+reft:tessler2016manuscript propose that the core meaning of a generic statement is in fact a threshold on prevalence, as in `generic` above. However, they treat that threshold as underspecified: the listener has uncertainty about the value of `theta`. With this underspecified threshold semantics for the generic, we can use a Bayesian model to arrive at a more precise meaning in context.
 
-### A pragmatic model of generic language
+### Bayesian generic language interpretation
 
-The model takes the generic $$[\![\text{K has F}]\!]$$ to mean the prevalence of property F within kind K is above some threshold: $$P(F \mid K) > \theta$$ (cf., Cohen 1999).
-But for the generic, no fixed value of the $$\theta$$ would suffice.
+The model takes the generic *K has F* (e.g., *Dogs have fur*) to mean that the prevalence of property F within kind K is above some threshold: $$P(F \mid K) > \theta$$ (cf., Cohen 1999).
+But for the generic, no fixed value of the $$\theta$$ will suffice.
 Instead, we leave the threshold underspecified in the semantics ($$\theta \sim \text{Uniform}(0, 1)$$) and infer it in context.
 
-In RSA, we could write this as the following:
+We can implement this reasoning with the following code. A listener hears a generic `utterance` and infers the `prevalence` of F within K by condering only those `prevalence` values that exceed  `theta`.
 
 ~~~~
-var pragmaticListener = function(utterance) {
+var listener = function(utterance) {
   Infer({model: function(){
     var prevalence = sample(prevalencePrior)
     var theta = uniform(0, 1)
-    var S1 = speaker1(prevalence, theta)
-    observe(S1, utterance)
+    condition(meaning(utterance,prevalence,theta))
     return prevalence
   }})
 }
 ~~~~
 
-Here, we have a uniform prior over `theta`.
-What is `prevalence` though (and what is the `prevalencePrior`)?
-Given that we've posited that the semantics of the generic are about the prevalence $$P(F \mid K)$$ (i.e., the `meaning()` function in the `literalListener` conditions on `prevalence > theta`) then what the listener updates her beliefs about is  the prevalence $$P(F \mid K)$$.
+Here, we have a uniform prior over `theta`. 
+<!-- What is `prevalence` though (and what is the `prevalencePrior`)?
+Given that we've posited that the semantics of the generic are about the prevalence $$P(F \mid K)$$ (i.e., the `meaning()` function in the `literalListener` conditions on `prevalence > theta`) then what the listener updates her beliefs about is the prevalence $$P(F \mid K)$$. -->
 <!-- So `x` is prevalence. -->
-
 The listener samples `prevalence` from some prior `prevalencePrior`, which is a prior distribution over the prevalence of the feature.
-Let's try to understand that.
+The next step is to unpack what goes into our prior knowledge of prevalences for a given feature.
 
 ### Prior model
 
@@ -85,10 +93,10 @@ Got one in mind?
 What percentage of that kind of animal *is female*?
 Probably roughly 50%, regardless of the kind of animal you thought of.
 What percentage of that kind of animal *lays eggs*?
-Well, it probably depends on the kind of animal you thought. If you thought of a falcon, then roughly 50% (recall, only the females lay eggs).
+That percentage depends on the kind of animal you're considering. If you thought of a falcon, then the percentage that lays eggs is roughly 50% (only the females lay eggs).
 But if you thought of a bear, then 0% of them lay eggs.
 
-We can conceive of the prior distribution over the prevalence of a feature with a kind $$P(F\mid K)$$ as a distribution over kinds $$P(K)$$ and then the prevalence of the feature within the kind.
+We can conceive of the prior distribution over the prevalence of a feature within a kind, $$P(F\mid K)$$, as a distribution over kinds, $$P(K)$$, together with the prevalence of the feature within the kind.
 
 ~~~~
 var allKinds = [
@@ -110,8 +118,8 @@ var prevalencePrior = Infer({model:
     var k = kindPrior()
     var prevalence =
         k.family == "bird" ? 0.5 :  // half of birds lay eggs
-        k.family == "reptile" ? 0.2 : // i'm not really sure if reptiles lay eggs
-        0 // no other thing lays eggs;
+        k.family == "reptile" ? 0.2 : // not sure if reptiles lay eggs
+        0 // no other thing lays eggs
 
     return prevalence
   }
@@ -126,41 +134,89 @@ prevalencePrior
 
 #### A generalization of the prior model
 
-In the above model, we encoded the fact that people have knowledge about different types of categories (e.g., reptiles, mammals) and that this knowledge should give rise to different beliefs about the prevalence of the feature for a given kind.
+In the above prior, we encoded the fact that people have knowledge about different types of categories (e.g., reptiles, mammals) and that this knowledge should give rise to different beliefs about the prevalence of the feature for a given kind.
 More generally, if speakers and listeners believe that some kinds have a causal mechanism that *stably* gives rise to the property, while others do not, then we would expect the prior to be structured as a mixture distribution (cf., Griffiths & Tenenbaum, 2005).
 
 For convenience, let us denote the relevant probability $$P(F \mid K)$$ as $$x$$.
 The categories that have a stable causal mechanism produce the feature with some probability $$x_{stable}$$.
-The categories that do not have a stable causal mechanism produce the feature with some probability $$x_{transient}$$ (perhaps this unstable mechanism is an external, environmental cause).
+The categories that do not have a stable causal mechanism produce the feature with some probability $$x_{transient}$$ (perhaps this unstable mechanism is an external, environmental cause, that occurs very rarely).
 We would expect $$x_{transient}$$ to be small (even zero), as certain features are completely absent in many categories (e.g., the number of lions that lay eggs).
 $$x_{stable}$$, on the other hand, could be large, giving rise to features that are often common in a kind (e.g., *has four legs*), but might also be substantially less than 1 for features that are non-universal in a category (e.g., *has brown fur*).
 
-We formalize this idea by drawing $$x_{stable}$$ and $$x_{transient}$$ from Beta distributions (which has support between 0 - 1; thus samples from a Beta are numbers between 0 - 1 i.e., probabilities) with different parameters.
-We fix the distribution for the transient cause: $$ x_{transient} \sim Beta(0.01, 100)$$.
-(Here we use the mean--concentration parameterization of the Beta distribution rather than the canonical pseudocount parameterization. The first parameter is the mean of the distribution while the second is the concentration --- or inverse-variance --- of the distribution.)
+We formalize this idea by drawing $$x_{stable}$$ and $$x_{transient}$$ from Beta distributions (which has support between 0 and 1; samples from a Beta distribution correspond to probabilities).
+We fix the distribution for the transient cause: $$ x_{transient} \sim Beta(0.01, 100)$$. The first parameter specifies the mean of the distribution, while the second parameter determines its concentration, or the inverse-variance of the distribution.
+(Here we use the mean-concentration parameterization of the Beta distribution, rather than the canonical pseudocount parameterization.)
 
-What we plausibly can vary between contexts is the distribution for $$x_{stable} \sim Beta(\gamma, \delta)$$.
-We also can vary how prevalent each component or sub-distribution is, by a parameter $$\phi$$.
+~~~~
+///fold:
+// discretized range between 0 - 1
+var bins = map(function(x){
+  _.round(x, 2);
+},  _.range(0.01, 1, 0.02));
 
-Thus, the prior over $$x$$ is a mixture distribution:
+// function returns a discretized Beta distribution
+var DiscreteBeta = cache(function(g, d){
+  var a =  g * d, b = (1-g) * d;
+  var betaPDF = function(x){
+    return Math.pow(x, a-1)*Math.pow((1-x), b-1)
+  }
+  var probs = map(betaPDF, bins);
+  return Categorical({vs: bins, ps: probs})
+})
+///
+
+print("prevalence prior for transient causes:")
+DiscreteBeta(0.01, 100)
+
+~~~~
+
+What we plausibly can vary between contexts is the distribution of prevalences for stable causes: $$x_{stable} \sim Beta(\gamma, \delta)$$. Again, the first parameter specifies the mean of the distribution, while the second parameter determines its concentration. Concentration is high for properties that stably present in most kinds in exactly the same proportion (e.g. "is female"); it is lower when there is more variance (or uncertainty).
+
+~~~~
+///fold:
+// discretized range between 0 - 1
+var bins = map(function(x){
+  _.round(x, 2);
+},  _.range(0.01, 1, 0.02));
+
+// function returns a discretized Beta distribution
+var DiscreteBeta = cache(function(g, d){
+  var a =  g * d, b = (1-g) * d;
+  var betaPDF = function(x){
+    return Math.pow(x, a-1)*Math.pow((1-x), b-1)
+  }
+  var probs = map(betaPDF, bins);
+  return Categorical({vs: bins, ps: probs})
+})
+///
+
+var mean = 0.5
+var concentration = 10
+
+print("prevalence prior for stable causes:")
+DiscreteBeta(mean, concentration)
+
+~~~~
+
+We also can vary how prevalent transient vs. stable causes are. The prior that results is a mixture distribution:
 
 $$
 x \sim \phi \cdot \text{Beta}(\gamma, \delta) + (1 - \phi) \cdot \text{Beta}(0.01, 100)
 $$
 
-where $$\gamma$$ is the mean of the stable cause distribution and $$\delta$$ is the "concentration" (or, inverse-variance) of this distribution. $$\delta$$ is high for properties that present in almost every kind in exactly the same proportion (e.g. "is female"). It is lower when there is more uncertainty about exactly how many within a kind are expected to have the property.
+<!-- where $$\gamma$$ is the mean of the stable cause distribution and $$\delta$$ is the "concentration" (or, inverse-variance) of this distribution. $$\delta$$ is  -->
 
 
 <!-- $$\phi$$ is a parameter that governs mixture between these two components.
  For example, "is female" has a high `phi` to be present in a kind; while "lays eggs" has less potential (owing to the fact that a lot of animals do not have any members who lay eggs). "Carries malaria" has a very low potential to be present. `prevalenceWhenPresent` is the *mean prevalence when the property is present*. Knowing that the property is present in a kind, what % of the kind do you expect to have it? -->
 
-These two components of the prior can be probed from human intuitions through two questions:
+The components of the prior can be probed with human intuitions through two questions. To determine the relative prominence of the stable cause, $$\phi$$, we consider how likely it is for any member of a kind to have the relevant property. To determine the average prevalence among those kinds where the property is stably present, $$\gamma$$, we consider the proportion of the property within a single kind; looking at the variability among multiple judgments, we can estimate the concentration of this proportion, $$\delta$$. The task proceeds as follows:
 
 > We just discovered an animal on a far away island called a fep.
-> 1. How likely is it that there is a *fep* that has wings? ($$\rightarrow \phi$$)
-> 2. Suppose there is a fep that has wings, what % of feps do you think have wings? ($$\rightarrow \gamma; \rightarrow \delta$$)
+> 1. How likely is it that there is a fep that has wings? ($$\phi$$)
+> 2. Suppose there is a fep that has wings. What percentage of feps do you think have wings? ($$\gamma; \delta$$)
 
-(Run through your intuitions with other properties like "is female", or "lays eggs".)
+(Run through your intuitions with other properties like "is female" or "lays eggs".)
 
 The following model `priorModel` formalizes the above ideas computationally:
 
@@ -182,14 +238,14 @@ var DiscreteBeta = cache(function(g, d){
 var priorModel = function(params){
   Infer({model: function(){
 
-    var potential = params["potential"]
-    var g = params["prevalenceWhenPresent"]
-    var d = params["concentrationWhenPresent"]
+    var phi = params["potential"]
+    var gamma = params["prevalenceWhenPresent"]
+    var delta = params["concentrationWhenPresent"]
 
-    var StableDistribution = DiscreteBeta(g, d)
+    var StableDistribution = DiscreteBeta(gamma, delta)
     var UnstableDistribution = DiscreteBeta(0.01, 100)
 
-    var prevalence = flip(potential) ?
+    var prevalence = flip(phi) ?
       sample(StableDistribution) :
       sample(UnstableDistribution)
 
@@ -200,9 +256,9 @@ var priorModel = function(params){
 
 // e.g. "Lays eggs"
 viz(priorModel({
-  potential: 0.3,
-  prevalenceWhenPresent: 0.5, // how prevalent under the stable cause
-  concentrationWhenPresent: 10   // the inverse-variance of the stable cause
+  potential: 0.3, // how prevalent the stable cause is
+  prevalenceWhenPresent: 0.5, // how prevalent the feature is under the stable cause
+  concentrationWhenPresent: 10   // the concentration of the stable cause
 }))
 ~~~~
 
@@ -210,9 +266,9 @@ viz(priorModel({
 > 1. What does this picture represent? If you drew a sample from this distribution, what would that correspond to?
 > 2. Try to think up a property for which the three parameters above are not able to give even a remotely plausible distribution. (If you succeed, let us know; the idea is that this parameterization is sufficient to capture---in approximation---any case of relevance.)
 
-### Generics model
+## Generic interpretation model
 
-The model assumes a simple (the simplest?) meaning for a generic statement: a threshold on the probability.
+The generics model assumes a simple (the simplest?) meaning for a generic statement: a threshold on the prevalence of a feature in a kind.
 
 ~~~~
 ///fold:
@@ -259,163 +315,37 @@ var meaning = function(utterance, prevalence, threshold) {
   return (utterance == 'generic') ? prevalence > threshold : true
 }
 var thresholdPrior = function() { return uniformDraw(thresholdBins) };
-var theta = thresholdPrior()
 
-display("theta = " + theta)
 var statePrior = priorModel({
-  potential: 0.3,
-  prevalenceWhenPresent: 0.5, // how prevalent under the stable cause
-  concentrationWhenPresent: 10   // the inverse-variance of the stable cause
+  potential: 0.3, // how prevalent the stable cause is
+  prevalenceWhenPresent: 0.5, // how prevalent the feature is under the stable cause
+  concentrationWhenPresent: 10   // the concentration of the stable cause
 })
 
-display("prevalence prior")
+display("prevalence prior:")
 viz(statePrior)
 
-var literalListener = cache(function(utterance, threshold) {
-  Infer({model: function(){
-    var prevalence = sample(statePrior)
-    var m = meaning(utterance, prevalence, threshold)
-    condition(m)
-    return prevalence
-  }})
-})
-
-display("literal listener posterior, given a threshold of " + theta)
-literalListener("generic", theta)
-~~~~
-
-Run the code multiple times. Each time it samples a new threshold and passes it to the literal listener.
-How do decide upon a threshold? We can use the `pragmaticListener` in RSA to decide what threshold a speaker would use.
-
-For the speaker utterances, we use only the alternative of staying silent. Staying silent is a null utterance that has no information content. The inclusion of the null utterance turns the generic into a speech-act, and is useful for evaluating the meaning of an utterance without competition of alternatives.
-
-~~~~
-///fold:
-// discretized range between 0 - 1
-var bins = map(function(x){
-  _.round(x, 2);
-},  _.range(0.01, 1, 0.02));
-
-var thresholdBins = map2(function(x,y){
-  var d = (y - x)/ 2;
-  return x + d
-}, bins.slice(0, bins.length - 1), bins.slice(1, bins.length))
-
-// function returns a discretized Beta distribution
-var DiscreteBeta = cache(function(g, d){
-  var a =  g * d, b = (1-g) * d;
-  var betaPDF = function(x){
-    return Math.pow(x, a-1)*Math.pow((1-x), b-1)
-  }
-  var probs = map(betaPDF, bins);
-  return Categorical({vs: bins, ps: probs})
-})
-
-var priorModel = function(params){
-  Infer({model: function(){
-
-    var potential = params["potential"]
-    var g = params["prevalenceWhenPresent"]
-    var d = params["concentrationWhenPresent"]
-
-    var StableDistribution = DiscreteBeta(g, d)
-    var UnstableDistribution = DiscreteBeta(0.01, 100)
-
-    var prevalence = flip(potential) ?
-      sample(StableDistribution) :
-      sample(UnstableDistribution)
-
-    return prevalence
-  }})
-}
-///
-
-var alpha_1 = 5;
-
-var utterances = ["generic", "silence"];
-
-var thresholdPrior = function() { return uniformDraw(thresholdBins) };
-var utterancePrior = function() { return uniformDraw(utterances) }
-
-var meaning = function(utterance, prevalence, threshold) {
-  return (utterance == 'generic') ? prevalence > threshold : true
-}
-
-var literalListener = cache(function(utterance, threshold, statePrior) {
-  Infer({model: function(){
-    var prevalence = sample(statePrior)
-    var m = meaning(utterance, prevalence, threshold)
-    condition(m)
-    return prevalence
-  }})
-})
-
-var speaker1 = cache(function(prevalence, threshold, statePrior) {
-  Infer({model: function(){
-    var utterance = utterancePrior()
-    var L0 = literalListener(utterance, threshold, statePrior)
-    factor( alpha_1 * L0.score(prevalence) )
-    return utterance
-  }})
-})
-
-var pragmaticListener = function(utterance, statePrior) {
+var listener = cache(function(utterance) {
   Infer({model: function(){
     var prevalence = sample(statePrior)
     var threshold = thresholdPrior()
-    var S1 = speaker1(prevalence, threshold, statePrior)
-    observe(S1, utterance)
-    return {prevalence}
+    var m = meaning(utterance, prevalence, threshold)
+    condition(m)
+    return prevalence
   }})
-}
-
-var prior = priorModel({
-  potential: 0.3,
-  prevalenceWhenPresent: 0.99,
-  concentrationWhenPresent: 10
 })
 
-var listenerPosterior = pragmaticListener("generic", prior)
-
-viz(listenerPosterior)
+display("listener posterior:")
+listener("generic")
 ~~~~
+
 
 > **Exercises:**
-> 1. Test the pragmatic listener's interpretations of *Wugs carry malaria*.
-> 2. Test the pragmatic listener's interpretations of *Wugs lay eggs*.
-> 3. Test the pragmatic listener's interpretations of *Wugs are female*.
+> 1. Come up with parameters for the prior that represent the *carries malaria* distribution. Test the  listener's interpretation of a generic (e.g., *Wugs carry malaria*).
+> 1. Come up with parameters for the prior that represent the *lays eggs* distribution. Test the listener's interpretation of a generic (e.g., *Wugs lay eggs*).
+> 1. Come up with parameters for the prior that represent the *are female* distribution. Test the listener's interpretation of a generic (e.g., *Wugs are female*).
 
-So we have a model that can interpret generic language (with a very simple semantics). We can now imagine a speaker who thinks about this type of listener, and decides if a generic utterance is a good thing to say. Speaker models are interpreted as models of utterance production, or endorsement (reft:DegenGoodman2014Cogsci; reft:Franke2014). If we specify the alternative utterance to be a *null* utterance (or, *silence*), we model the choice between uttering the generic (i.e., endorsing its truth) or nothing at all (i.e., not endorsing its truth). (Note: You could also think about truth judgments with the alternative of saying the negation, e.g., it's not the case that Ks have F. Model behavior is very similar using that alternative in this case.)
-
-~~~~
-///...
-
-var speaker1 = function(prevalence, threshold) {
-  Infer({model: function(){
-    var utterance = utterancePrior()
-
-    var L0 = literalListener(utterance, threshold)
-    factor( alpha_1 * L0.score(prevalence) )
-
-    return utterance
-  }})
-}
-
-///...
-
-var speaker2 = function(prevalence){
-  Infer({model: function(){
-    var utterance = utterancePrior()
-
-    var L1 = pragmaticListener(utterance);  
-    factor( alpha_2 * L1.score(prevalence) )
-
-    return utterance
-  }})
-}
-~~~~
-
-Let's add speaker2 into the full model.
+So far we have a model that can interpret generic language (with a very simple semantics). We can now imagine a speaker who thinks about this type of listener and decides if a generic utterance is a good thing to say to describe the state of the world. Speaker models are interpreted as models of utterance production, or endorsement (reft:DegenGoodman2014Cogsci; reft:Franke2014). If we specify the alternative utterance to be a *null* utterance (i.e., silence), we model the choice between uttering the generic (i.e., endorsing its truth) or nothing at all (i.e., not endorsing its truth). <!-- (Note: You could also think about truth judgments with the alternative of saying the negation, e.g., it's not the case that Ks have F. Model behavior is very similar using that alternative in this case.) -->
 
 ~~~~
 ///fold:
@@ -458,55 +388,41 @@ var priorModel = function(params){
 }
 ///
 
-var alpha_1 = 5;
-var alpha_2 = 1;
+var alpha = 2;
 var utterances = ["generic", "silence"];
 
 var thresholdPrior = function() { return uniformDraw(thresholdBins) };
 var utterancePrior = function() { return uniformDraw(utterances) }
+var cost = {
+  "generic": 1,
+  "silence": 1
+}
 
 var meaning = function(utterance, prevalence, threshold) {
   return (utterance == 'generic') ? prevalence > threshold : true
 }
 
-var literalListener = cache(function(utterance, threshold, statePrior) {
+
+var listener = function(utterance, statePrior) {
   Infer({model: function(){
     var prevalence = sample(statePrior)
+    var threshold = thresholdPrior()
     var m = meaning(utterance, prevalence, threshold)
     condition(m)
     return prevalence
   }})
-})
-
-var speaker1 = cache(function(prevalence, threshold, statePrior) {
-  Infer({model: function(){
-    var utterance = utterancePrior()
-    var L0 = literalListener(utterance, threshold, statePrior)
-    factor( alpha_1 * L0.score(prevalence) )
-    return utterance
-  }})
-})
-
-var pragmaticListener = function(utterance, statePrior) {
-  Infer({model: function(){
-    var prevalence = sample(statePrior)
-    var threshold = thresholdPrior()
-    var S1 = speaker1(prevalence, threshold, statePrior)
-    observe(S1, utterance)
-    return prevalence
-  }})
 }
 
-var speaker2 = function(prevalence, statePrior){
+var speaker = function(prevalence, statePrior){
   Infer({model: function(){
     var utterance = utterancePrior();
-    var L1 = pragmaticListener(utterance, statePrior);
-    factor( alpha_2 * L1.score(prevalence) )
+    var L = listener(utterance, statePrior);
+    factor( alpha * (L.score(prevalence) - cost[utterance]))
     return utterance
   }})
 }
 
-var target_prevalence = 0.03
+var observed_prevalence = 0.03
 
 var prior = priorModel({
   potential: 0.01,
@@ -516,12 +432,12 @@ var prior = priorModel({
 
 viz.density(prior)
 
-viz(speaker2(target_prevalence, prior))
+viz(speaker(observed_prevalence, prior))
 ~~~~
 
 > **Exercises:**
-> 1. Test *Birds lay eggs* vs. *Birds are female*. (Technical note: Due to the discretization of the state space, `target_x` must take odd-numbered values such as 0.03, 0.05, 0.09, ... )
-> 2. Come up with other generic sentences. Hypothesize what the prior might be, and what the prevalence might be, and test the model on it.
+> 1. Test *Birds lay eggs* vs. *Birds are female*. (Technical note: Due to the discretization of the state space, `observed_prevalence` must take odd-numbered values such as 0.03, 0.05, 0.09, ... )
+> 2. Come up with other generic sentences. Hypothesize what the prior might be, what the prevalence might be, and test the model on it.
 
 
 #### Extension: Generics with gradable adjectives

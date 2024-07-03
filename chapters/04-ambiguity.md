@@ -16,7 +16,7 @@ One of the most remarkable aspects of natural language is its compositionality: 
 
 So far, the models we have considered operate at the level of full utterances.  These models assume conversational agents who reason over propositional content to arrive at enriched interpretations: "I want the blue one," "Some of the apples are red," "The electric kettle cost $10,000 dollars," etc. Now, let's approach meaning from the opposite direction: building the literal interpretations (and our model of the world that verifies them) from the bottom up: [semantic parsing](http://dippl.org/examples/semanticparsing.html). The model constructs literal interpretations and verifying worlds from the semantic atoms of sentences. However, whereas the model explicitly targets compositional semantics, it stops at the level of the literal listener, the base of RSA reasoning. In what follows, we consider a different approach to approximating compositional semantics within the RSA framework.
 
-What we want is a way for our models of language understanding to target sub-propositional aspects of meaning. We might wind up going the route of the fully-compositional but admittedly-unwieldy CCG semantic parser, but for current purposes an easier path presents itself: parameterizing our meaning function so that conversational agents can reason jointly over utterance interpretations and the parameters that fix them. To see how this move serves our aims, we consider the following application.
+What we want is a way for our models of language understanding to target sub-propositional aspects of meaning. We might wind up going the route of the fully-compositional but admittedly-unwieldy CCG semantic parser, but for current purposes an easier path presents itself: parameterizing our meaning function so that conversational agents can reason jointly over utterance interpretations and the parameters that fix them. To see how this move serves our aims, we consider the following application from reft:scontraspearl2021.
 
 #### Application: Quantifier scope ambiguities
 
@@ -61,7 +61,7 @@ The literal listener $$L_0$$ has prior uncertainty about the true state, *s*, an
 // Literal listener (L0)
 var literalListener = cache(function(utterance, scope) {
   Infer({model: function(){
-    var state = statePrior()
+    var state = uniformDraw(states)
     condition(meaning(utterance,state,scope))
     return state
   }})
@@ -95,6 +95,10 @@ var utterancePrior = function() {
   uniformDraw(utterances)
 }
 
+var cost = function(utterance) {
+  return 1
+}
+
 // possible world states
 var states = [0,1,2,3];
 var statePrior = function() {
@@ -117,17 +121,20 @@ var meaning = function(utterance, state, scope) {
 // Literal listener (L0)
 var literalListener = cache(function(utterance,scope) {
   return Infer({model: function(){
-    var state = statePrior()
+    var state = uniformDraw(states)
     condition(meaning(utterance,state,scope))
     return state
   }})
 })
 
+var alpha = 1
+
 // Speaker (S)
 var speaker = cache(function(scope,state) {
   return Infer({model: function(){
     var utterance = utterancePrior()
-    observe(literalListener(utterance,scope),state)
+    factor(alpha*(literalListener(utterance,scope).score(state) 
+                  - cost(utterance)))
     return utterance
   }})
 })
@@ -164,6 +171,10 @@ var utterancePrior = function() {
   uniformDraw(utterances)
 }
 
+var cost = function(utterance) {
+  return 1
+}
+
 // possible world states
 var states = [0,1,2,3]
 var statePrior = function() {
@@ -196,19 +207,22 @@ var QUDFun = function(QUD, state) {
 // Literal listener (L0)
 var literalListener = cache(function(utterance, scope, QUD) {
   Infer({model: function(){
-    var state = statePrior()
+    var state = uniformDraw(states)
     var qState = QUDFun(QUD,state)
     condition(meaning(utterance, state, scope))
     return qState
   }});
 });
 
+var alpha = 1
+
 // Speaker (S)
 var speaker = cache(function(scope, state, QUD) {
-  Infer({model: function(){
+  return Infer({model: function(){
     var utterance = utterancePrior()
     var qState = QUDFun(QUD, state)
-    observe(literalListener(utterance, scope, QUD), qState)
+    factor(alpha*(literalListener(utterance,scope,QUD).score(qState) 
+                  - cost(utterance)))
     return utterance
   }})
 })
@@ -235,7 +249,7 @@ viz.marginals(posterior)
 > 2. Try adding a `none red?` QUD. What does this addition do to $$L_1$$'s inference about the state? Why?
 
 
-Finally, we can add one more layer to our models: rather than predicting how a listener would interpret the ambiguous utterance, we can predict how a *speaker* would use it. In other words, we can derive predictions about whether the ambiguous utterance would be endorsed as a good description of a specific state of the world. A speaker might see that two out of three apples are red. In this scenario, is the ambiguous utterance a good description? To answer this question, the speaker should reason about how a listener would interpret the utterance. But our current speaker model isn't able to derive these predictions for us, given the variables that have been lifted to the level of $$L_1$$ (i.e., `scope` and `QUD`). In the case of lifted variables, we'll need another level of inference to model a *pragmatic* speaker, $$S_2$$.
+Finally, we can add one more layer to our models: rather than predicting how a listener would interpret the ambiguous utterance, we can predict how a *speaker* would use it. In other words, we can derive predictions about whether the ambiguous utterance would be endorsed as a good description of a specific state of the world---a truth-value judgment. A speaker might see that two out of three apples are red. In this scenario, is the ambiguous utterance a good description? To answer this question, reft:scontraspearl2021 propose that the speaker should reason about how a listener would interpret the utterance. But our current speaker model isn't able to derive these predictions for us, given the variables that have been lifted to the level of $$L_1$$ (i.e., `scope` and `QUD`). In the case of lifted variables, we'll need another level of inference to model a *pragmatic* speaker, $$S_2$$.
 
 This pragmatic speaker observes the state of the world and chooses an utterance that would best communicate this state to a pragmatic listener:
 
@@ -261,6 +275,10 @@ var utterances = ["null","every-not"];
 
 var utterancePrior = function() {
   uniformDraw(utterances)
+}
+
+var cost = function(utterance) {
+  return 1
 }
 
 // possible world states
@@ -296,7 +314,7 @@ var QUDFun = function(QUD,state) {
 // Literal listener (L0)
 var literalListener = cache(function(utterance,scope,QUD) {
   Infer({model: function(){
-    var state = statePrior();
+    var state = uniformDraw(states);
     var qState = QUDFun(QUD,state)
     condition(meaning(utterance,state,scope));
     return qState;
@@ -306,14 +324,15 @@ var literalListener = cache(function(utterance,scope,QUD) {
 var alpha = 1
 
 // Speaker (S)
-var speaker = cache(function(scope,state,QUD) {
-  Infer({model: function(){
-    var utterance = utterancePrior();
-    var qState = QUDFun(QUD,state);
-    factor(alpha * literalListener(utterance,scope,QUD).score(qState));
-    return utterance;
-  }});
-});
+var speaker = cache(function(scope, state, QUD) {
+  return Infer({model: function(){
+    var utterance = utterancePrior()
+    var qState = QUDFun(QUD, state)
+    factor(alpha*(literalListener(utterance,scope,QUD).score(qState) 
+                  - cost(utterance)))
+    return utterance
+  }})
+})
 
 // Pragmatic listener (L1)
 var pragmaticListener = cache(function(utterance) {

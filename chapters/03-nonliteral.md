@@ -12,7 +12,7 @@ The models we have so far considered strengthen the literal interpretations of o
 
 If you hear that someone waited "a million years" for a table at a popular restaurant or paid "a thousand dollars" for a coffee at a hipster hangout, you are unlikely to conclude that the improbable literal meanings are true. Instead, you conclude that the diner waited a long time, or paid an exorbitant amount of money, *and that she is frustrated with the experience*. Whereas blue circles are compatible with the literal meaning of "blue," five-dollar coffees are not compatible with the literal meaning of "a thousand dollars." How, then, do we arrive at sensible interpretations when our words are literally false?
 
-reft:kaoetal2014 propose that we model hyperbole understanding as pragmatic inference. Crucially, they propose that we recognize uncertainty about **communicative goals**: what Question Under Discussion (QUD) a speaker is likely addressing with their utterance. QUDs are modeled as summaries of the full world states, or *projections* of full world states onto the aspect(s) that are relevant for the Question Under Discussion. In the case study of hyperbolic language understanding, reft:kaoetal2014 propose that two aspects of the world are critical: the true state of the world and speakers' attitude toward the true state of the world (e.g., the valence of their *affect*), which is modeled simply as a binary positive/negative variable (representing whether or not the speaker is upset). In addition, the authors investigate the *pragmatic halo* effect, by considering a QUD that addresses *approximately* the exact price (`approxPrice`):
+reft:kaoetal2014 propose that we model hyperbole understanding as pragmatic inference. Crucially, they propose that we recognize uncertainty about **communicative goals**: what Question Under Discussion (QUD) a speaker is likely addressing with their utterance. QUDs are modeled as summaries of the full world states, or *projections* of full world states onto the aspect(s) that are relevant for the Question Under Discussion. In the case study of hyperbolic language understanding, reft:kaoetal2014 propose that two aspects of the world are critical: the true state of the world and speakers' attitudes toward the true state of the world (e.g., the valence of their *affect*), which is modeled simply as a binary positive/negative variable (representing whether or not the speaker is upset). In addition, the authors investigate the *pragmatic halo* effect, by considering a QUD that addresses *approximately* the exact price (`approxPrice`):
 
 ~~~~
 ///fold:
@@ -24,6 +24,9 @@ var approx = function(x) {
 var stringify = function(x){return JSON.stringify(x)}
 ///
 
+var fullState = { price: 51, valence: true }
+display("full state = " + stringify(fullState))
+
 var qudFns = {
   price : function(state) {return { price: state.price } },
   valence : function(state) {return { valence: state.valence } },
@@ -32,9 +35,6 @@ var qudFns = {
   },
   approxPrice : function(state) {return { price: approx(state.price) } }
 }
-
-var fullState = { price: 51, valence: true }
-display("full state = " + stringify(fullState))
 
 var valenceQudFn = qudFns["valence"]
 var valenceQudAnswer = valenceQudFn(fullState)
@@ -57,15 +57,16 @@ Accurately modeling world knowledge is key to getting appropriate inferences fro
 
 ~~~~
 // Prior probability of kettle prices (taken from human experiments)
-var pricePrior = function() {
-  return categorical({
-    vs: [
+var prices = [
       50, 51,
       500, 501,
       1000, 1001,
       5000, 5001,
       10000, 10001
-    ],
+    ]
+var pricePrior = function() {
+  return categorical({
+    vs: prices,
     ps: [
       0.4205, 0.3865,
       0.0533, 0.0538,
@@ -104,6 +105,8 @@ viz.table(Infer({model: pricePrior}))
 
 Putting it all together, the literal listener updates these prior belief distributions by conditioning on the literal meaning of the utterance. The Question Under Discussion determines which kind of distribution (e.g., price or affect or both) will be returned.
 
+$$P_{L_{0}}(x \mid u, QUD) = \sum_{s,a \ \colon \ QUD(s,a) = x} P(a \mid s) \ P(s \mid [\![u]\!])$$
+
 ~~~~
 ///fold:
 // Round x to nearest multiple of b (used for approximate interpretation):
@@ -113,15 +116,16 @@ var approx = function(x,b) {
 }
 
 // Prior probability of kettle prices (taken from human experiments)
-var pricePrior = function() {
-  return categorical({
-    vs: [
+var prices = [
       50, 51,
       500, 501,
       1000, 1001,
       5000, 5001,
       10000, 10001
-    ],
+    ]
+var pricePrior = function() {
+  return categorical({
+    vs: prices,
     ps: [
       0.4205, 0.3865,
       0.0533, 0.0538,
@@ -168,47 +172,59 @@ var meaning = function(utterance, price) {
 
 var literalListener = cache(function(utterance, qud) {
   return Infer({model: function(){
-    var price = pricePrior() // uncertainty about the price
-    var valence = valencePrior(price) // uncertainty about the valence
+    var price = uniformDraw(prices)
+    var valence = valencePrior(price)
+    var fullState = {price, valence}
     var qudFn = qudFns[qud]
+    var qudAnswer = qudFn(fullState)
     condition( meaning(utterance, price) )
-    return qudFn({price, valence})
+    return qudAnswer
   }
 })})
+
 ~~~~
 
 > **Exercises:**
 > 1. Suppose the literal listener hears the kettle costs `10000` dollars with the `"priceValence"` QUD. What does it infer?
 > 2. Test out other QUDs. What aspects of interpretation does the literal listener capture? What aspects does it not capture?
-> 3. Create a new QUD function and try it out with "the kettle costs `10000` dollars".
+> 3. Create a new QUD function and try it out with "the kettle costs `10001` dollars".
 
 This enriched literal listener performs joint inference about the price and the valence but assumes a particular QUD by which to interpret the utterance. Similarly, the speaker chooses an utterance to convey a particular answer of the QUD to the literal listener:
 
+$$P_{S_{1}}(u \mid s, a, QUD) \propto \exp \left( \alpha \ (\log P_{L_{0}}(QUD(s,a) \mid u) - C(u)) \right)$$
+
 ~~~~
-var speaker = function(qudAnswer, qud) {
+// Speaker, chooses an utterance to convey a particular answer of the qud
+var speaker = cache(function(fullState, qud) {
   return Infer({model: function(){
     var utterance = utterancePrior()
-    factor(alpha * literalListener(utterance, qud).score(qudAnswer))
+    var qudFn = qudFns[qud]
+    var qudAnswer = qudFn(fullState)
+    factor(alpha*(literalListener(utterance,qud).score(qudAnswer) 
+                  - cost(utterance)))
     return utterance
-  }
-})}
+  }})
+})
 ~~~~
 
-To model hyperbole, Kao et al. posited that the pragmatic listener actually has uncertainty about what the QUD is, and jointly infers the price (and speaker valence) and the intended QUD from the utterance he receives. That is, the pragmatic listener simulates how the speaker would behave with various QUDs.
+To model hyperbole, Kao et al. posited that the pragmatic listener actually has uncertainty about what the QUD is, and jointly infers the price (and speaker valence) and the intended QUD from the utterance he receives. That is, the pragmatic listener simulates how the speaker would behave with various QUDs. (Notice that the code below marginalizes over different QUDs.)
+
+$$P_{L_{1}}(s,a \mid u) \propto \sum_{QUD} P(s) \ P(a \mid s) \ P(QUD) \ P_{S_{1}}(u \mid s,a, QUD) $$
 
 ~~~~
-var pragmaticListener = function(utterance) {
+// Pragmatic listener, jointly infers the price state, speaker valence, and QUD
+var pragmaticListener = cache(function(utterance) {
   return Infer({model: function(){
+    //////// priors ////////
     var price = pricePrior()
     var valence = valencePrior(price)
-    var fullState = {price, valence}
     var qud = qudPrior()
-    var qudFn = qudFns[qud]
-    var qudAnswer = qudFn(price, valence)
-    observe( speaker(qudAnswer, qud), utterance)
+    ////////////////////////
+    var fullState = {price, valence}
+    observe(speaker(fullState, qud), utterance)
     return fullState
-  }
-})}
+  }})
+})
 ~~~~
 
 Here is the full model:
@@ -223,15 +239,16 @@ var approx = function(x,b) {
 
 // Here is the code from the Kao et al. hyperbole model
 // Prior probability of kettle prices (taken from human experiments)
+var prices = [
+  50, 51,
+  500, 501,
+  1000, 1001,
+  5000, 5001,
+  10000, 10001
+]
 var pricePrior = function() {
   return categorical({
-    vs: [
-      50, 51,
-      500, 501,
-      1000, 1001,
-      5000, 5001,
-      10000, 10001
-    ],
+    vs: prices,
     ps: [
       0.4205, 0.3865,
       0.0533, 0.0538,
@@ -282,7 +299,7 @@ var qudFns = {
 
 // Prior over QUDs
 var qudPrior = function() {
- categorical({
+  categorical({
     vs: ["price", "valence", "priceValence", "approxPrice", "approxPriceValence"],
     ps: [1, 1, 1, 1, 1]
   })
@@ -296,47 +313,46 @@ var utterances = [
   5000, 5001,
   10000, 10001
 ]
+var utterancePrior = function() {
+  return  uniformDraw(utterances)
+}
 
 // precise numbers can be assumed to be costlier than round numbers
 var preciseNumberCost = 1
-var utteranceCost = function(numberUtt){
-  return numberUtt == approx(numberUtt) ? // if it's a round number utterance
-        0 : // no cost
-        preciseNumberCost // cost of precise numbers (>= 0)
-}
-
-var utteranceProbs = map(function(numberUtt){
-  return Math.exp(-utteranceCost(numberUtt)) // prob ~ e^(-cost)
-}, utterances)
-
-var utterancePrior = function() {
-  categorical({ vs: utterances, ps: utteranceProbs })
+var cost = function(utterance){
+  return utterance == approx(utterance) ? // if it's a round number utterance
+    0 : // no cost
+  preciseNumberCost // cost of precise numbers (>= 0)
 }
 
 // Literal listener, infers the qud answer assuming the utterance is
 // true of the state
 var literalListener = cache(function(utterance, qud) {
   return Infer({model: function(){
-    var price = pricePrior() // uncertainty about the price
-    var valence = valencePrior(price) // uncertainty about the valence
+    var price = uniformDraw(prices)
+    var valence = valencePrior(price)
     var fullState = {price, valence}
-    condition( meaning(utterance, price) )
     var qudFn = qudFns[qud]
-    return qudFn(fullState)
+    var qudAnswer = qudFn(fullState)
+    condition( meaning(utterance, price) )
+    return qudAnswer
   }
-})})
+               })})
 
 // set speaker optimality
 var alpha = 1
 
 // Speaker, chooses an utterance to convey a particular answer of the qud
-var speaker = cache(function(qudAnswer, qud) {
+var speaker = cache(function(fullState, qud) {
   return Infer({model: function(){
     var utterance = utterancePrior()
-    factor(alpha*literalListener(utterance,qud).score(qudAnswer))
+    var qudFn = qudFns[qud]
+    var qudAnswer = qudFn(fullState)
+    factor(alpha*(literalListener(utterance,qud).score(qudAnswer) 
+                  - cost(utterance)))
     return utterance
-  }
-})})
+  }})
+})
 
 // Pragmatic listener, jointly infers the price state, speaker valence, and QUD
 var pragmaticListener = cache(function(utterance) {
@@ -347,12 +363,10 @@ var pragmaticListener = cache(function(utterance) {
     var qud = qudPrior()
     ////////////////////////
     var fullState = {price, valence}
-    var qudFn = qudFns[qud]
-    var qudAnswer = qudFn(fullState)
-    observe(speaker(qudAnswer, qud), utterance)
+    observe(speaker(fullState, qud), utterance)
     return fullState
-  }
-})})
+  }})
+})
 
 var listenerPosterior = pragmaticListener(10000)
 
@@ -362,13 +376,14 @@ viz(listenerPosterior)
 // print("marginal distributions:")
 // viz.table(marginalize(listenerPosterior, "price"))
 // viz.hist(marginalize(listenerPosterior, "valence"))
+
 ~~~~
 
 > **Exercises:**
-> 1. In the second code box, we looked at the joint *prior* distribution over price and valence. Compare the results of that with the listener interpretation of "10000". What is similar? What is different?
+> 1. In the second code box, we looked at the joint *prior* distribution over price and valence. Compare that joint distribution with the listener interpretation of "`10000`". What is similar? What is different?
 > 2. Try the `pragmaticListener` with the other possible utterances.
-> 3. Check the predictions of the `speaker` for the `approxPriceValence` QUD.
-> 4. Look at the marginal distributions for "price" and "valence" of the pragmatic listener after hearing "10,000". Do you find these intuitive? If not, how could the model possibly be amended to make it more intuitive?
+> 3. Check the predictions for a speaker who paid 501 and has a negative-valenced affect (i.e., valence is `true`) and wishes to only communicate affect. What are the three most likely utterances such a speaker would choose? (Hint: use `viz.table` to see all options ordered in terms of their probability; a histogram is not informative in this case.)
+> 4. Look at the marginal distributions for "price" and "valence" of the pragmatic listener after hearing "`10000`". Do you find these intuitive? If not, how could the model possibly be amended to make it more intuitive?
 
 By capturing the extreme (im)probability of kettle prices, together with the flexibility introduced by shifting communicative goals, the model is able to derive the inference that a speaker who comments on a "$10,000 kettle" likely intends to communicate that the kettle price was upsetting. The model thus captures some of the most flexible uses of language: what we mean when our utterances are literally false.
 
@@ -445,7 +460,7 @@ var goalState = function(goal, state, valence, arousal) {
 // Define a literal listener
 var literalListener = function(utterance, goal) {
   Infer({model: function(){
-    var state = statePrior()
+    var state = uniformDraw(states)
     var valence = valencePrior(state)
     var arousal = arousalPrior(state)
     condition(literalInterpretation(utterance,state))
@@ -561,7 +576,7 @@ var goalState = function(goal, featureSet) {
 //  Define a literal listener
 var literalListener = function(utterance, goal) {
   Infer({model: function() {
-    var category = categoriesPrior()
+    var category = uniformDraw(categories)
     var featureSet = featureSetPrior(category)
     condition(literalInterpretation(utterance, category))
     return goalState(goal, featureSet)

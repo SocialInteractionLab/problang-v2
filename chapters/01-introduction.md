@@ -15,7 +15,7 @@ The probabilistic pragmatics approach leverages the tools of structured probabil
 
 The Rational Speech Act (RSA) framework views communication as recursive reasoning between a speaker and a listener. The listener interprets the speaker’s utterance by reasoning about a cooperative speaker trying to inform a naive listener about some state of affairs. Using Bayesian inference, the listener reasons about what the state of the world is likely to be given that a speaker produced some utterance, knowing that the speaker is reasoning about how a listener is most likely to interpret that utterance. Thus, we have (at least) three levels of inference. At the top, the sophisticated, **pragmatic listener**, $$L_{1}$$, reasons about the **pragmatic speaker**, $$S_{1}$$, and infers the state of the world $$s$$ given that the speaker chose to produce the utterance $$u$$. The speaker chooses $$u$$ by maximizing the probability that a naive, **literal listener**, $$L_{0}$$, would correctly infer the state of the world $$s$$ given the literal meaning of $$u$$.
 
-To make this architecture more intelligible, let's consider a concrete example and a vanilla version of an RSA model. In its initial formulation, reft:frankgoodman2012 use the basic RSA framework to model referent choice in efficient communication. Let us suppose that there are only three objects that speaker and listener want to talk about, as in Fig. 1.
+To make this architecture more intelligible, let's consider a concrete example and a vanilla version of an RSA model. In its initial formulation, reft:frankgoodman2012 use the basic RSA framework to model referent choice in efficient communication. Let's suppose that there are only three objects that the speaker and listener want to talk about, as in Fig. 1.
 
 {% include figure.html 
 file="../images/rsa_scene.png" 
@@ -25,17 +25,17 @@ number = "1"
 width="400px" 
 %}
 
-In a **reference game** a speaker wants to refer to one of the given objects. To simplify, we assume that the speaker may only choose one property (see below) with which to do so. In the example of Fig. 1 the **set of world states**
+In a **reference game**, a speaker wants to refer to one of the given objects. To simplify, we assume that the speaker may only choose one property (see below) with which to do so. In the example of Fig. 1, the **set of world states**
 
 $$S = \{\text{blue-square}, \text{blue-circle}, \text{green-square}\}$$
 
 contains the three objects given. The **set of utterances**
 
-$$U = \{ \text{``square"}, \text{``circle"}, \text{``green"}, \text{``blue"}  \}$$
+$$U = \{ \text{"square"}, \text{"circle"}, \text{"green"}, \text{"blue"}  \}$$
 
 contains the four properties from which the speaker can choose.
 
-A vanilla RSA model for this scenario consists of three recursively layered, conditional probability rules for speaker production and listener interpretation. These rules are summarized in Fig. 2 and will be examined one-by-one in detail below. The overal idea is that a **pragmatic speaker** $$S_{1}$$ chooses a word $$u$$ to best signal an object $$s$$ to a **literal listener** $$L_{0}$$, who interprets $$u$$ as true and weighs in the prior probability of objects in the scenario (i.e., an object’s salience, $$P(s)$$). The **pragmatic listener** $$L_{1}$$ reasons about the speaker’s reasoning and interprets $$u$$ accordingly, using Bayes rule. By formalizing the contributions of salience and efficiency, the RSA framework provides an information-theoretic definition of informativeness in pragmatic inference.  
+A vanilla RSA model for this scenario consists of three recursively layered, conditional probability rules for speaker production and listener interpretation. These rules are summarized in Fig. 2 and will be examined one-by-one below. The overal idea is that a **pragmatic speaker** $$S_{1}$$ chooses a word $$u$$ to best signal an object $$s$$ to a **literal listener** $$L_{0}$$, who interprets $$u$$ as true and finds the objects that are compatible with the meaning of $$u$$. The **pragmatic listener** $$L_{1}$$ reasons about the speaker’s reasoning and interprets $$u$$ accordingly, using Bayes' rule; $$L_1$$ also weighs in the prior probability of objects in the scenario (i.e., an object’s salience, $$P(s)$$). By formalizing the contributions of salience and efficiency, the RSA framework provides an information-theoretic definition of informativeness in pragmatic inference.  
 
 {% include figure.html 
 file="../images/rsa_schema.png" 
@@ -46,11 +46,11 @@ number = "2"
 
 ### Literal listeners
 
-At the base of this reasoning, the naive, literal listener $$L_{0}$$ interprets an utterance according to its meaning. That is, $$L_{0}$$ computes the probability of $$s$$ given $$u$$ according to the semantics of $$u$$ and the prior probability of $$s$$. A standard view of the semantic content of an utterance suffices: a mapping from states of the world to truth values. For example, the utterance $$\text{``blue"}$$ is true of states $$\text{blue-square}$$ and $$\text{blue-circle}$$ and false of state $$\text{green-square}$$. We write $$[\![u]\!] \colon S \mapsto \{0,1\}$$ for the denotation function of such a standard, Boolean semantics of utterances in terms of states. The literal listener is then defined via a function $$P_{L_{0}} \colon U \mapsto \Delta^S$$ that maps each utterance to a probability distribution over world states, like so:
+At the base of this reasoning, the naive, literal listener $$L_{0}$$ interprets an utterance according to its meaning. That is, $$L_{0}$$ computes the probability of $$s$$ given $$u$$ according to the semantics of $$u$$ and the prior probability of $$s$$. A standard view of the semantic content of an utterance suffices: a mapping from states of the world to truth values. For example, the utterance $$\text{"blue"}$$ is true of states $$\text{blue-square}$$ and $$\text{blue-circle}$$ and false of state $$\text{green-square}$$. We write $$[\![u]\!] \colon S \mapsto \{0,1\}$$ for the denotation function of this standard, Boolean semantics of utterances in terms of states. The literal listener is then defined via a function $$P_{L_{0}} \colon U \mapsto \Delta^S$$ that maps each utterance to a probability distribution over world states, like so:
 
 $$P_{L_{0}}(s\mid u) \propto [\![u]\!](s) \cdot P(s)$$
 
-Here $$P(s)$$ is an a priori belief regarding which state or object the speaker is likely to refer to in general. These prior beliefs can capture general world knowledge, perceptual salience or other things. For the time being, we assume a flat prior belief according to which each object is equally likely.
+Here, $$P(s)$$ is an a priori belief regarding which state or object the speaker is likely to refer to in general. These prior beliefs can capture general world knowledge, perceptual salience, or other things. For the time being, we assume a flat prior belief according to which each object is equally likely. (As we move away from flat priors, we'll want to revise these assumptions so that $$L_0$$ (but not $$L_1$$!) uses a uniform prior over states. In fact, this is what reft:frankgoodman2012 assumed in their model. See [Appendix Chapter 4](app-04-BDA.html) for discussion.)
 
 The literal listener rule can be written as follows:
 
@@ -92,12 +92,8 @@ viz.table(literalListener("blue"))
 
 
 > **Exercises:**
-> 1. In the model above, `objectPrior()` returns a sample from a `uniformDraw` over the
->    possible objects of reference. What happens when the listener's beliefs are not uniform
->    over the possible objects of reference (e.g., the "green square" is very salient)? (Hint:
->    use a `categorical` distribution by calling `categorical({ps: [list_of_probabilities], vs:
->    objects})`. More information about WebPPL's built-in distributions and their parameterizations can be found in the [documentation](http://webppl.readthedocs.io/en/master/distributions.html).)
-> 2. Call `viz.hist(literalListener("blue"))`, one of WebPPL's visualization functions. Try vizualizing the model output differently (hint: [WebPPL-viz](http://probmods.github.io/webppl-viz/) documents the various visualization options).
+> 1. In the model above, `objectPrior()` returns a sample from a `uniformDraw` over the possible objects of reference. What happens when the listener's beliefs are not uniform over the possible objects of reference (e.g., the "green square" is very salient)? (Hint: use a `categorical` distribution by calling `categorical({ps: [list_of_probabilities], vs: objects})`. More information about WebPPL's built-in distributions and their parameterizations can be found in the [documentation](http://webppl.readthedocs.io/en/master/distributions.html).)
+> 2. Try vizualizing the model output differently: call `viz.hist(literalListener("blue"))`, one of WebPPL's visualization functions ([WebPPL-viz](http://probmods.github.io/webppl-viz/) discusses the various visualization options).
 
 
 Fantastic! We now have a way of integrating a listener's prior beliefs about the world with the truth functional meaning of an utterance.
@@ -149,7 +145,7 @@ viz(agent);
 
 #### A rational speech actor
 
-In language understanding, the utility of an utterance is how well it communicates the state of the world $$s$$ to a listener. So, the speaker $$S_{1}$$ chooses utterances $$u$$ to communicate the state $$s$$ to the hypothesized literal listener $$L_{0}$$. Another way to think about this: $$S_{1}$$ wants to minimize the effort $$L_{0}$$ would need to arrive at $$s$$ from $$u$$, all while being efficient at communicating. $$S_{1}$$ thus seeks to minimize the surprisal of $$s$$ given $$u$$ for the literal listener $$L_{0}$$, while bearing in mind the utterance cost, $$C(u)$$. (This trade-off between efficacy and efficiency is not trivial: speakers could always use minimal ambiguity, but unambiguous utterances tend toward the unwieldy, and, very often, unnecessary. We will see this tension play out later in the course.)
+In language understanding, the utility of an utterance is how well it communicates the state of the world $$s$$ to a listener. So, the speaker $$S_{1}$$ chooses utterances $$u$$ to communicate the state $$s$$ to the hypothesized literal listener $$L_{0}$$. Another way to think about this: $$S_{1}$$ wants to minimize the effort $$L_{0}$$ would need to arrive at $$s$$ from $$u$$, all while being efficient at communicating. $$S_{1}$$ thus seeks to minimize the surprisal of $$s$$ given $$u$$ for the literal listener $$L_{0}$$, while bearing in mind the utterance cost, $$C(u)$$. (This trade-off between efficacy and efficiency is not trivial: speakers could always use minimal ambiguity, but unambiguous utterances tend toward the unwieldy, and, very often, unnecessary. We will see this tension play out later in the book.)
 
 Speakers act in accordance with the speaker’s utility function $$U_{S_{1}}$$: utterances are more useful at communicating about some state as surprisal and utterance cost decrease. (See the [Appendix Chapter 2](app-02-utilities.html) for more on speaker utilities.)
 
@@ -169,21 +165,20 @@ which expands to:
 
 $$P_{S_1}(u \mid s) \propto \exp(\alpha (\log L_{0}(s\mid u) - C(u)))\,.$$
 
-We start by assuming that all utterances are equally costly (i.e., $$C(u) = C(u')$$ for all
-$$u, u'$$) so that we can calculate the speaker's choice probabilities as follows (see [Appendix Chapter 3](app-03-costs.html) for more on message costs and how to implement them):
+The following code implements this model of the speaker:
 
 ~~~~
 // pragmatic speaker
 var speaker = function(obj){
   Infer({model: function(){
     var utterance = utterancePrior();
-    factor(alpha * literalListener(utterance).score(obj))
+    factor(alpha * (literalListener(utterance).score(obj) - cost(utterance)))
     return utterance
   }})
 }
 ~~~~
 
-> **Exercise:** Check the speaker's behavior for a blue square. (Hint: you'll need to add a few pieces to the model, for example the `literalListener()` and all its dependencies. You'll also need to define the `utterancePrior()` --- try using a `uniformDraw()` over the possible `utterances`. Finally, you'll need to define the speaker optimality `alpha` --- try setting `alpha` to 1.)
+> **Exercise:** Check the speaker's behavior for a blue square. (Hint: you'll need to add a few pieces to the model, for example the `literalListener()` and all its dependencies. You'll also need to define the `utterancePrior()` --- try using a `uniformDraw()` over the possible `utterances` --- and the `cost()` function --- try modeling it after the `utility()` function from the previous code box. Finally, you'll need to define the speaker optimality `alpha` --- try setting `alpha` to 1.)
 
 We now have a model of the utterance generation process. With this in hand, we can imagine a listener who thinks about this kind of speaker.
 
@@ -209,7 +204,8 @@ var pragmaticListener = function(utterance){
 
 ### Putting it all together
 
-Let's explore what happens when we put all of the previous agent models together.
+Let's explore what happens when we put all of the previous agent models together. In the following code, we assume that all utterances are equally costly (i.e., $$C(u) = C(u')$$ for all
+$$u, u'$$) (see [Appendix Chapter 3](app-03-costs.html) for more on message costs and how to implement them).
 
 ~~~~
 
@@ -244,14 +240,19 @@ var objects = [{color: "blue", shape: "square", string: "blue square"},
                {color: "blue", shape: "circle", string: "blue circle"},
                {color: "green", shape: "square", string: "green square"}]
 
-// set of utterances
-var utterances = ["blue", "green", "square", "circle"]
-
 // prior over world states
 var objectPrior = function() {
   var obj = uniformDraw(objects)
   return obj.string 
 }
+
+// set of utterances
+var utterances = ["blue", "green", "square", "circle"]
+
+// utterance cost function
+var cost = function(utterance) {
+  return 0;
+};
 
 // meaning function to interpret the utterances
 var meaning = function(utterance, obj){
@@ -274,7 +275,7 @@ var alpha = 1
 var speaker = function(obj){
   Infer({model: function(){
     var utterance = uniformDraw(utterances)
-    factor(alpha * literalListener(utterance).score(obj))
+    factor(alpha * (literalListener(utterance).score(obj) - cost(utterance)))
     return utterance
   }})
 }
