@@ -93,7 +93,7 @@ var literalListener = cache(function(utterance, theta) {
 
 > **Exercise:** Check $$L_0$$'s predictions for various price cutoffs.
 
-We get a full RSA model once we add the pragmatic speaker $$L_1$$ and pragmatic listener $$L_1$$ models. The pragmatic speaker is assumed to have a fixed threshold $$\theta$$, the pragmatic listener hears the gradable adjective and jointly infers the relevant item price and cutoff to count as expensive.
+We get a full RSA model once we add the pragmatic speaker $$S_1$$ and pragmatic listener $$L_1$$ models. The pragmatic speaker is assumed to have a fixed threshold $$\theta$$, the pragmatic listener hears the gradable adjective and jointly infers the relevant item price and cutoff to count as expensive.
 
 $$P_{S_1}(u \mid s, \theta) \propto \exp ( \alpha \ (\log P_{L_0}(s \mid u, \theta) - C(u)))$$
 
