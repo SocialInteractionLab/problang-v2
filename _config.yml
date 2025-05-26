@@ -1,11 +1,39 @@
 # Site settings
-
-title: Probabilistic language understanding
-# baseurl: "/probLang"
-url: "http://gscontras.github.io/probLang"
+title: NeuroPrag
+description: "Neuro-Symbolic Models of Language Use: A Computational Approach to Pragmatic Reasoning"
+baseurl: "" # the subpath of your site, e.g. /blog
+url: "https://neuroprag.org" # the base hostname & protocol for your site
 
 # Build settings
 markdown: kramdown
+theme: minima
 
+# Kramdown settings for math support
+kramdown:
+  math_engine: mathjax
+
+# Collections
+collections:
+  chapters:
+    output: true
+    permalink: /chapters/:name
+
+# Defaults
+defaults:
+  - scope:
+      path: ""
+      type: "chapters"
+    values:
+      layout: "chapter"
+      
+# Exclude from processing
 exclude:
-- node_modules
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor/bundle/
+  - vendor/cache/
+  - vendor/gems/
+  - vendor/ruby/
+  - README.md
+  - LICENSE

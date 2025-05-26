@@ -1,4 +1,5 @@
 ## Probabilistic language understanding: An introduction to the Rational Speech Act framework
+
 ### By: Gregory Scontras, Michael Henry Tessler, and Michael Franke
 
 [Hosted here](https://gscontras.github.io/probLang/)

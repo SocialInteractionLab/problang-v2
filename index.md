@@ -17,16 +17,30 @@ The course employs `memo`, a modern probabilistic programming language designed 
 
 ## Main content
 
-{% for chapter in site.data.chapters %}
-- [{{ chapter.title }}]({{ chapter.url }})
-  {{ chapter.description }}
+{% assign sorted_pages = site.pages | sort:"name" %}
+
+{% for p in sorted_pages %}
+    {% if p.hidden %}
+    {% else %}
+        {% if p.layout == 'chapter' %}
+1. **<a class="chapter-link" href="{{ site.baseurl }}{{ p.url }}">{{ p.title }}</a>**<br>
+        <em>{{ p.description }}</em>
+        {% endif %}
+    {% endif %}
 {% endfor %}
 
 ## Appendix
 
-{% for appendix in site.data.appendices %}
-- [{{ appendix.title }}]({{ appendix.url }})
-  {{ appendix.description }}
+{% assign sorted_pages = site.pages | sort:"name" %}
+
+{% for p in sorted_pages %}
+    {% if p.hidden %}
+    {% else %}
+        {% if p.layout == 'appendix' %}
+1. **<a class="chapter-link" href="{{ site.baseurl }}{{ p.url }}">{{ p.title }}</a>**<br>
+        <em>{{ p.description }}</em>
+        {% endif %}
+    {% endif %}
 {% endfor %}
 
 ## Citation
