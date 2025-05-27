@@ -76,16 +76,13 @@ $$ = \frac{1 \cdot \frac{1}{3}}{\frac{1}{2}} = \frac{2}{3} $$
 
 ##### Bayes rule in memo
 
-To implement Bayes rule in memo, we specify the observation-generating process using memo's sampling and inference constructs. Here is how you would sample a color from a random card:
+To implement Bayes rule in memo, we specify the observation-generating process using memo's sampling and inference constructs. First, let's define our shared code:
 
-To obtain the conditional probability of a card given that we observed a specific color, we use memo's inference and conditioning constructs:
-
-```python
+<script type="py-editor">
+# Shared definitions
 import jax
 import jax.numpy as jnp
 from enum import IntEnum
-from memo import memo
-from memo import domain as product
 
 class Color(IntEnum):
     RED = 0
@@ -102,53 +99,82 @@ def check_color(card, side):
         [1, 1]   # Card 2: both sides blue
     ])[card][side]
 
-@memo
-def color_prior[_c: Color]():
-    agent: given(card in cards, wpp=1)
-    agent: given(side in sides, wpp=1)
-    return Pr[check_color(agent.card, agent.side) == _c]
-```
+def color_prior(color):
+    total_prob = 0
+    for card in cards:
+        for side in sides:
+            if check_color(card, side) == color:
+                total_prob += 1/6  # 1/3 for card * 1/2 for side
+    return total_prob
+</script>
 
-This setup defines:
-1. The possible colors (RED and BLUE)
-2. The three cards, which each have two sides
-3. A function to check what color appears on a given side of a given card
-4. A prior probability distribution over colors
+Now we can calculate and display the prior probabilities:
 
-Now we can implement Bayesian reasoning:
+<script type="py-editor">
+# Calculate and display prior probabilities
+print("Prior probabilities of colors:")
+print(f"P(RED) = {color_prior(Color.RED):.4f}")
+print(f"P(BLUE) = {color_prior(Color.BLUE):.4f}")
 
-```python
-@memo
-def card_posterior[_card: cards, _color: Color]():
-    observer: knows(_card, _color)
-    observer: thinks[
-        friend: chooses(card in cards, wpp=1),
-        friend: chooses(side in sides, wpp=1),
-        friend: given(color in Color, 
-                        wpp=color==check_color(card, side))
-    ]
-    observer: observes [friend.color] is _color
-    return observer[Pr[friend.card == _card]]
-```
+# Display the full probability table
+print("\nFull probability table:")
+print("Card | Side 1 | Side 2")
+print("----------------------")
+for card in cards:
+    side1 = "RED" if check_color(card, 0) == Color.RED else "BLUE"
+    side2 = "RED" if check_color(card, 1) == Color.RED else "BLUE"
+    print(f"{card+1:4d} | {side1:6s} | {side2:6s}")
+</script>
 
-This implementation shows how we can model basic Bayesian reasoning in `memo`. Let's break it down:
+Now we can implement Bayesian reasoning to calculate the posterior probabilities:
+
+<script type="py-editor">
+def card_posterior(card, color):
+    # Calculate P(color | card)
+    p_color_given_card = 0
+    for side in sides:
+        if check_color(card, side) == color:
+            p_color_given_card += 0.5  # 1/2 for each side
+    
+    # Calculate P(color)
+    p_color = color_prior(color)
+    
+    # Calculate P(card)
+    p_card = 1/3  # Equal probability for each card
+    
+    # Apply Bayes' rule
+    return (p_color_given_card * p_card) / p_color
+
+# Calculate and display posterior probabilities
+print("Posterior probabilities of cards given color:")
+print("\nGiven RED:")
+for card in cards:
+    print(f"P(card {card+1} | RED) = {card_posterior(card, Color.RED):.4f}")
+print("\nGiven BLUE:")
+for card in cards:
+    print(f"P(card {card+1} | BLUE) = {card_posterior(card, Color.BLUE):.4f}")
+</script>
+
+This implementation shows how we can model basic Bayesian reasoning in Python. Let's break it down:
 
 1. We're interested in building probability distributions depending on two axes:
-   - `_card`: which card we're interested in (0, 1, or 2)
-   - `_color`: the color we observed (RED or BLUE)
+   - `card`: which card we're interested in (0, 1, or 2)
+   - `color`: the color we observed (RED or BLUE)
 
-2. The observer knows which card and color we're interested in (`observer: knows(_card, _color)`)
+2. The `check_color` function defines the color configuration of each card:
+   - Card 0: both sides red
+   - Card 1: one red, one blue
+   - Card 2: both sides blue
 
-3. The observer imagines a friend who:
-   - Chooses a card at random
-   - Chooses a side at random
-   - The color of the chosen side is determined by the card's configuration
+3. The `color_prior` function calculates the prior probability of seeing a particular color by:
+   - Iterating through all possible card and side combinations
+   - Adding up the probabilities when the color matches
 
-4. The observer then conditions on seeing the specified color
-
-5. Finally, we return the probability that the friend chose the card we're interested in
-
-## Reading the Results
+4. The `card_posterior` function implements Bayes' rule to calculate:
+   - P(color | card): probability of seeing a color given a card
+   - P(color): prior probability of seeing a color
+   - P(card): prior probability of selecting a card
+   - Returns P(card | color) using Bayes' rule
 
 When we run this model, it gives us probabilities like:
 ```
@@ -166,4 +192,4 @@ These probabilities make intuitive sense:
 - If we see blue, it can't be card 0 (which has both sides red)
 - Card 1 (with one red and one blue side) is equally likely in both cases
 
-> **Exercise:** Implement Bayesian reasoning for the 2-box problem in memo. Jones has two boxes. One contains two gold coins, the other one gold and one silver coin. Jones selects a random box and picks a random coin from it. He shows you a gold coin. What is the probability that the other coin in the box from which Jones presented the gold coin to you is also gold?
+> **Exercise:** Implement Bayesian reasoning for the 2-box problem in Python. Jones has two boxes. One contains two gold coins, the other one gold and one silver coin. Jones selects a random box and picks a random coin from it. He shows you a gold coin. What is the probability that the other coin in the box from which Jones presented the gold coin to you is also gold?
