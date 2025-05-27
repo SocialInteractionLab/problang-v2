@@ -25,14 +25,8 @@ function github_page_url(page_url) {
 // WebPPL editor
 // Code boxes
 function setupCodeBoxes(){
-  // TODO: optimize this, (maybe have wpEditor.setup take a content option?)
-  $('pre > code:not(.language-norun)').map(function(i,el) {
-    var firstLine = $(el).text().split("\n")[0];
-    var language = (firstLine == '// language: javascript' ? 'javascript' : 'webppl');
-
-    var preEl = $(el).parent()[0];
-    wpEditor.setup(preEl, {language: language})
-  })
+  var preEls = Array.prototype.slice.call(document.querySelectorAll("pre"));
+  preEls.map(function(el) { wpEditor.setup(el, {language: 'webppl'}); });
 }
 
 $(setupCodeBoxes);
@@ -40,11 +34,6 @@ $(setupCodeBoxes);
 if (typeof Distribution !== 'undefined') {
   Distribution.prototype.__print__ = viz.print;
 }
-
-// $(function(){
-//   var preEls = Array.prototype.slice.call(document.querySelectorAll("pre"));
-//   preEls.map(function(el) { wpEditor.setup(el, {language: 'webppl'}); });
-// });
 
 
 // References and bibliography
@@ -110,13 +99,13 @@ function author_lastname(authorString) {
 
 function short_authors(authorsString) {
   if (!authorsString) {
-    console.warn('short_authors got:' + authorsString);
-    return;
+    console.warn('short_authors got undefined or empty author string');
+    return 'Unknown Author';
   }
   var authors = authorsString.split(" and ");
   if (authors.length === 0) {
     console.error('Expected >= 1 author, got: ' + authorsString);
-    return authorsString;
+    return 'Unknown Author';
   }
   var firstAuthor = authors[0];
   if (authors.length === 1) {
@@ -154,18 +143,24 @@ function format_refp(citation) {
 }
 
 
-$.get("/bibliography.bib", function (bibtext) {
+$.get("/probLang-memo/bibliography.bib", function (bibtext) {
     $(function () {
         var bibs = doParse(bibtext);
         $.each(
             bibs,
             function (citation_id, citation) {
+              // Skip if citation_id starts with @ or if citation is invalid
+              if (citation_id.startsWith('@') || !citation || !citation["AUTHOR"]) {
+                return;
+              }
               replace_html("cite:" + citation_id, format_citation(citation));
               replace_html("reft:" + citation_id, format_reft(citation));
               replace_html("refp:" + citation_id, format_refp(citation));
             }
         );
     });
+}).fail(function(jqXHR, textStatus, errorThrown) {
+    console.error('Failed to load bibliography:', textStatus, errorThrown);
 });
 
 
@@ -221,4 +216,5 @@ ga('send', 'pageview');
 
 $(document).ready(function() {
   setDate();
+  setupCodeBoxes();
 });
