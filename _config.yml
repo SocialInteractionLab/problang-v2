@@ -1,8 +1,8 @@
 # Site settings
 title: NeuroPrag
 description: "Neuro-Symbolic Models of Language Use: A Computational Approach to Pragmatic Reasoning"
-baseurl: "/assets" # the subpath of your site, e.g. /blog
-url: "https://neuroprag.org" # the base hostname & protocol for your site
+baseurl: "/probLang-memo" # the subpath of your site, e.g. /blog
+url: "https://hawkrobe.github.io" # the base hostname & protocol for your site
 
 # Build settings
 markdown: kramdown
