@@ -1,5 +1,0 @@
-jax
-numpy
-memo-lang
-jupyter
-matplotlib 
