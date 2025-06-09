@@ -132,7 +132,7 @@ function format_refp(citation) {
 }
 
 
-$.get("/bibliography.bib", function (bibtext) {
+$.get("/probLang-memo/bibliography.bib", function (bibtext) {
     $(function () {
         var bibs = doParse(bibtext);
         $.each(
