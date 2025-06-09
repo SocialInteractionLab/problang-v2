@@ -267,6 +267,8 @@ color_prior(print_table=True)
 Finally, let's implement the full Bayesian inference for the 3-card problem. This shows how memo can express complex inference scenarios with observers, agents, and conditional reasoning:
 
 ```python
+import xarray as xr
+
 @memo
 def card_posterior[_card: cards, _color: Color]():
     observer: knows(_card, _color)
