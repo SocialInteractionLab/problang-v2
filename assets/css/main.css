@@ -139,3 +139,64 @@ blockquote {
 	border: 2px #616c7a solid;
 	background-color: #b7cae5;
 }
+
+/* ThebeLab Styling */
+.thebe-activate-button {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background-color: #095AD3;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    z-index: 1000;
+}
+
+.thebe-activate-button:hover {
+    background-color: #0747a6;
+}
+
+.thebe-run-button {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 12px;
+    margin-bottom: 5px;
+}
+
+.thebe-run-button:hover {
+    background-color: #218838;
+}
+
+.thebe-cell {
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    margin: 10px 0;
+    padding: 10px;
+    background-color: #f8f9fa;
+}
+
+.thebe-input {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 14px;
+    background-color: #f8f8f8;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+.thebe-output {
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    padding: 10px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 12px;
+}
