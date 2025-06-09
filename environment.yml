@@ -1,0 +1,13 @@
+name: probLang-memo
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  - pip
+  - numpy
+  - matplotlib
+  - jupyter
+  - pip:
+    - jax
+    - memo-lang 

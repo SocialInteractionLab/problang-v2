@@ -9,6 +9,7 @@ $(document).ready(function() {
             repo: "hawkrobe/probLang-memo",  // Correct GitHub repository
             ref: "main",
             binderUrl: "https://mybinder.org",
+            // Specify which environment file to use (environment.yml takes precedence)
         },
         // Kernel options
         kernelOptions: {

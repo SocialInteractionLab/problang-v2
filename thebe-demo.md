@@ -7,24 +7,49 @@ title: ThebeLab Demo
 
 This page demonstrates executable code blocks using ThebeLab. Click "Activate Interactive Code" in the top right, then click the "Run" buttons to execute code.
 
+## Test Basic Python
+
+```python
+# Test if basic Python works
+import numpy as np
+import matplotlib.pyplot as plt
+
+print("✅ Basic Python working!")
+print("NumPy version:", np.__version__)
+
+# Simple computation
+x = np.arange(10)
+y = x ** 2
+print("Simple array computation:")
+print("x =", x)
+print("y = x^2 =", y)
+```
+{: data-executable="true"}
+
 ## Basic memo Example
 
 ```python
-import memo
-import numpy as np
+# Try memo - this might fail if Binder can't build JAX
+try:
+    import memo
+    import numpy as np
 
-# Simple example with memo
-X = np.arange(5)
+    # Simple example with memo
+    X = np.arange(5)
 
-@memo.memo
-def simple_model[a: X, b: X]():
-    return a + b
+    @memo.memo
+    def simple_model[a: X, b: X]():
+        return a + b
 
-# Calculate the result
-result = simple_model()
-print("Result shape:", result.shape)
-print("Result values:")
-print(result)
+    # Calculate the result
+    result = simple_model()
+    print("✅ memo working!")
+    print("Result shape:", result.shape)
+    print("Result values:")
+    print(result)
+except ImportError as e:
+    print("❌ memo not available:", e)
+    print("This is expected if JAX couldn't be installed in the Binder environment")
 ```
 {: data-executable="true"}
 
