@@ -370,7 +370,10 @@ $(document).ready(function() {
     });
     
     // Add the status button to pages with executable code
-    if ($("[data-thebe-executable='true']").length > 0) {
+    const executableElements = $("[data-thebe-executable='true']");
+    console.log('Found executable elements:', executableElements.length);
+    
+    if (executableElements.length > 0) {
         $('body').prepend($statusButton);
         
         // Disable thebe buttons initially and set up interception
@@ -382,18 +385,23 @@ $(document).ready(function() {
         
         // Check if we should auto-start or wait for manual activation
         const isLocalhost = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+        console.log('Current hostname:', window.location.hostname, 'isLocalhost:', isLocalhost);
         
         if (isLocalhost) {
             // On localhost, provide manual activation due to potential CORS issues
+            console.log('Localhost detected - enabling manual activation');
             $statusButton.text('🔌 Click to Start Kernel')
                        .prop('disabled', false)
                        .attr('title', 'Click to start kernel (auto-start disabled on localhost due to CORS)');
         } else {
             // On production, auto-start the kernel
+            console.log('Production environment detected - enabling auto-start');
             setTimeout(() => {
                 console.log('Auto-starting kernel...');
                 autoStartKernel();
             }, 500);
         }
+    } else {
+        console.log('No executable elements found on this page - Thebe not initialized');
     }
 }); 
