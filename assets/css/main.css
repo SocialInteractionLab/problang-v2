@@ -159,19 +159,117 @@ blockquote {
     background-color: #0747a6;
 }
 
+/* Enhanced Run Button Styling */
 .thebe-run-button {
-    background-color: #28a745;
-    color: white;
-    border: none;
-    padding: 5px 10px;
-    border-radius: 3px;
-    cursor: pointer;
-    font-size: 12px;
-    margin-bottom: 5px;
+    background: linear-gradient(135deg, #28a745, #20c997) !important;
+    color: white !important;
+    border: none !important;
+    padding: 8px 16px !important;
+    border-radius: 6px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3) !important;
+    position: relative !important;
+    min-width: 80px !important;
 }
 
-.thebe-run-button:hover {
-    background-color: #218838;
+.thebe-run-button:hover:not(:disabled) {
+    background: linear-gradient(135deg, #218838, #1e7e34) !important;
+    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.4) !important;
+    transform: translateY(-1px) !important;
+}
+
+.thebe-run-button:active:not(:disabled) {
+    transform: translateY(0) !important;
+    box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3) !important;
+}
+
+/* Running state styling */
+.thebe-run-button.running {
+    background: linear-gradient(135deg, #17a2b8, #138496) !important;
+    cursor: not-allowed !important;
+    position: relative !important;
+}
+
+.thebe-run-button.running::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    border: 2px solid transparent;
+    border-top: 2px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.thebe-run-button.running .button-text {
+    margin-left: 24px;
+}
+
+@keyframes spin {
+    0% { transform: translateY(-50%) rotate(0deg); }
+    100% { transform: translateY(-50%) rotate(360deg); }
+}
+
+/* Disabled Thebe run button styling */
+.thebe-run-button:disabled {
+    background: linear-gradient(135deg, #6c757d, #5a6268) !important;
+    color: #fff !important;
+    opacity: 0.7 !important;
+    cursor: not-allowed !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+.thebe-run-button:disabled:hover {
+    background: linear-gradient(135deg, #6c757d, #5a6268) !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* Pulse effect for successful execution */
+.thebe-run-button.success {
+    animation: successPulse 0.6s ease-out;
+}
+
+@keyframes successPulse {
+    0% {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+    }
+    50% {
+        background: linear-gradient(135deg, #34ce57, #2dd4aa);
+        box-shadow: 0 0 20px rgba(40, 167, 69, 0.6);
+        transform: scale(1.05);
+    }
+    100% {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+        transform: scale(1);
+    }
+}
+
+/* Notification messages */
+.kernel-not-ready-message,
+.execution-in-progress-message {
+    border: 1px solid rgba(0,0,0,0.1);
+    animation: slideInFromRight 0.3s ease-out;
+}
+
+@keyframes slideInFromRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
 }
 
 .thebe-cell {

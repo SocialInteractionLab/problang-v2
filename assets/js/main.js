@@ -22,18 +22,7 @@ function github_page_url(page_url) {
 }
 
 
-// WebPPL editor
-// Code boxes
-function setupCodeBoxes(){
-  var preEls = Array.prototype.slice.call(document.querySelectorAll("pre"));
-  preEls.map(function(el) { wpEditor.setup(el, {language: 'webppl'}); });
-}
-
-$(setupCodeBoxes);
-
-if (typeof Distribution !== 'undefined') {
-  Distribution.prototype.__print__ = viz.print;
-}
+// WebPPL functionality removed - now using ThebeLab for interactive code
 
 
 // References and bibliography
@@ -216,5 +205,4 @@ ga('send', 'pageview');
 
 $(document).ready(function() {
   setDate();
-  setupCodeBoxes();
 });

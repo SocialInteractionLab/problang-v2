@@ -1,6 +1,6 @@
 # Site settings
-title: NeuroPrag
-description: "Neuro-Symbolic Models of Language Use: A Computational Approach to Pragmatic Reasoning"
+title: ProbLang v2
+description: "Computational Models of Pragmatic Reasoning"
 baseurl: "/probLang-memo" # the subpath of your site, e.g. /blog
 url: "https://hawkrobe.github.io" # the base hostname & protocol for your site
 
@@ -25,7 +25,7 @@ defaults:
       type: "chapters"
     values:
       layout: "chapter"
-      
+
 # Exclude from processing
 exclude:
   - Gemfile
