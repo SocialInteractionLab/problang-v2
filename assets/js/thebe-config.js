@@ -82,7 +82,7 @@ $(document).ready(function() {
     // Function to show user-friendly message when buttons are clicked before kernel is ready
     function showKernelNotReadyMessage() {
         // Create a temporary notification
-        const $message = $('<div class="kernel-not-ready-message">Please activate the kernel first by clicking "Activate Interactive Code" in the top right corner.</div>');
+        const $message = $('<div class="kernel-not-ready-message">Please wait for the kernel to start automatically.</div>');
         $message.css({
             position: 'fixed',
             top: '60px',
@@ -301,21 +301,35 @@ $(document).ready(function() {
         });
     }
     
-    // Initialize button to start the kernel
-    const $initButton = $('<button id="thebe-activate-button" class="thebe-activate-button">Activate Interactive Code</button>');
-    $initButton.click(function() {
+    // Initialize status button to show kernel state
+    const $statusButton = $('<button id="thebe-activate-button" class="thebe-activate-button">🔄 Starting Kernel...</button>');
+    $statusButton.prop('disabled', true);
+    
+    // Function to automatically start the kernel
+    function autoStartKernel() {
         if (kernelRequestInProgress) {
+            console.log('Kernel request already in progress, skipping');
             return; // Prevent multiple kernel requests
         }
         
-        kernelRequestInProgress = true;
-        $(this).text('🚀 Starting Kernel...').prop('disabled', true);
+        console.log('Starting kernel bootstrap process...');
         
+        // Check if thebelab is available
+        if (typeof thebelab === 'undefined') {
+            console.error('ThebeLab library not loaded yet, retrying in 1 second...');
+            setTimeout(() => autoStartKernel(), 1000);
+            return;
+        }
+        
+        kernelRequestInProgress = true;
+        $statusButton.text('🚀 Starting Kernel...').prop('disabled', true);
+        
+        console.log('Calling thebelab.bootstrap with config:', thebeConfig);
         thebelab.bootstrap(thebeConfig).then(function() {
             console.log('ThebeLab kernel started successfully');
             isKernelReady = true;
             kernelRequestInProgress = false;
-            $initButton.text('✅ Kernel Ready').css('background-color', '#28a745');
+            $statusButton.text('✅ Kernel Ready').css('background-color', '#28a745');
             
             // Enable the thebe buttons
             enableThebeButtons();
@@ -335,14 +349,29 @@ $(document).ready(function() {
         }).catch(function(error) {
             console.error('Failed to start ThebeLab kernel:', error);
             kernelRequestInProgress = false;
-            $initButton.text('❌ Kernel Failed - Try Again').prop('disabled', false)
-                      .css('background-color', '#dc3545');
+            
+            // Check if this is a CORS error (common in localhost development)
+            if (error.message && error.message.includes('CORS')) {
+                $statusButton.text('⚠️ CORS Issue (localhost)').prop('disabled', false)
+                          .css('background-color', '#ffc107')
+                          .attr('title', 'CORS error - try on production site or click to retry');
+            } else {
+                $statusButton.text('❌ Kernel Failed - Click to Retry').prop('disabled', false)
+                          .css('background-color', '#dc3545');
+            }
         });
+    }
+    
+    // Allow manual retry if auto-start fails
+    $statusButton.click(function() {
+        if (!isKernelReady && !kernelRequestInProgress) {
+            autoStartKernel();
+        }
     });
     
-    // Add the activate button to pages with executable code
-    if ($("[data-executable='true']").length > 0) {
-        $('body').prepend($initButton);
+    // Add the status button to pages with executable code
+    if ($("[data-thebe-executable='true']").length > 0) {
+        $('body').prepend($statusButton);
         
         // Disable thebe buttons initially and set up interception
         setTimeout(() => {
@@ -350,5 +379,21 @@ $(document).ready(function() {
             interceptThebeButtons();
             enhanceRunButtons();
         }, 1000); // Give thebe time to render buttons
+        
+        // Check if we should auto-start or wait for manual activation
+        const isLocalhost = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+        
+        if (isLocalhost) {
+            // On localhost, provide manual activation due to potential CORS issues
+            $statusButton.text('🔌 Click to Start Kernel')
+                       .prop('disabled', false)
+                       .attr('title', 'Click to start kernel (auto-start disabled on localhost due to CORS)');
+        } else {
+            // On production, auto-start the kernel
+            setTimeout(() => {
+                console.log('Auto-starting kernel...');
+                autoStartKernel();
+            }, 500);
+        }
     }
 }); 
