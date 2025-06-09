@@ -1,0 +1,39 @@
+# Bayes' Rule - Chapter 1
+
+This notebook demonstrates Bayes' rule with interactive examples.
+
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [ ]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-python"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">jax</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">jax.numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">jnp</span>
+
+<span class="c1"># Bayes' rule example</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">bayes_rule</span><span class="p">(</span><span class="n">prior</span><span class="p">,</span> <span class="n">likelihood</span><span class="p">,</span> <span class="n">evidence</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Calculate posterior using Bayes' rule"""</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">likelihood</span> <span class="o">*</span> <span class="n">prior</span><span class="p">)</span> <span class="o">/</span> <span class="n">evidence</span>
+
+<span class="c1"># Example: Medical test</span>
+<span class="n">prior_disease</span> <span class="o">=</span> <span class="mf">0.01</span>  <span class="c1"># 1% of population has disease</span>
+<span class="n">test_sensitivity</span> <span class="o">=</span> <span class="mf">0.95</span>  <span class="c1"># 95% true positive rate</span>
+<span class="n">test_specificity</span> <span class="o">=</span> <span class="mf">0.90</span>  <span class="c1"># 90% true negative rate</span>
+
+<span class="c1"># Calculate evidence (total probability of positive test)</span>
+<span class="n">evidence</span> <span class="o">=</span> <span class="p">(</span><span class="n">test_sensitivity</span> <span class="o">*</span> <span class="n">prior_disease</span> <span class="o">+</span> 
+           <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">test_specificity</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">prior_disease</span><span class="p">))</span>
+
+<span class="c1"># Calculate posterior probability of disease given positive test</span>
+<span class="n">posterior</span> <span class="o">=</span> <span class="n">bayes_rule</span><span class="p">(</span><span class="n">prior_disease</span><span class="p">,</span> <span class="n">test_sensitivity</span><span class="p">,</span> <span class="n">evidence</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Prior probability of disease: </span><span class="si">{</span><span class="n">prior_disease</span><span class="si">:</span><span class="s2">.1%</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Test sensitivity: </span><span class="si">{</span><span class="n">test_sensitivity</span><span class="si">:</span><span class="s2">.1%</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Test specificity: </span><span class="si">{</span><span class="n">test_specificity</span><span class="si">:</span><span class="s2">.1%</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Evidence (P(positive test)): </span><span class="si">{</span><span class="n">evidence</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Posterior probability of disease given positive test: </span><span class="si">{</span><span class="n">posterior</span><span class="si">:</span><span class="s2">.1%</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>

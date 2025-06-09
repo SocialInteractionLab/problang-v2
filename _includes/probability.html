@@ -1,0 +1,79 @@
+# Bayesian Probability with JAX
+
+This notebook demonstrates Bayes' rule using the 3-card problem with JAX computations.
+
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [ ]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-python"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">jax</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">jax.numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">jnp</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">enum</span><span class="w"> </span><span class="kn">import</span> <span class="n">IntEnum</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">Color</span><span class="p">(</span><span class="n">IntEnum</span><span class="p">):</span>
+    <span class="n">RED</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">BLUE</span> <span class="o">=</span> <span class="mi">1</span>
+
+<span class="n">cards</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+<span class="n">sides</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+<span class="nd">@jax</span><span class="o">.</span><span class="n">jit</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">check_color</span><span class="p">(</span><span class="n">card</span><span class="p">,</span> <span class="n">side</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+        <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>  <span class="c1"># Card 0: both sides red</span>
+        <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>  <span class="c1"># Card 1: one red, one blue</span>
+        <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>   <span class="c1"># Card 2: both sides blue</span>
+    <span class="p">])[</span><span class="n">card</span><span class="p">][</span><span class="n">side</span><span class="p">]</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">color_prior</span><span class="p">(</span><span class="n">color</span><span class="p">):</span>
+    <span class="n">total_prob</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">card</span> <span class="ow">in</span> <span class="n">cards</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">side</span> <span class="ow">in</span> <span class="n">sides</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">check_color</span><span class="p">(</span><span class="n">card</span><span class="p">,</span> <span class="n">side</span><span class="p">)</span> <span class="o">==</span> <span class="n">color</span><span class="p">:</span>
+                <span class="n">total_prob</span> <span class="o">+=</span> <span class="mi">1</span><span class="o">/</span><span class="mi">6</span>  <span class="c1"># 1/3 for card * 1/2 for side</span>
+    <span class="k">return</span> <span class="n">total_prob</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">card_posterior</span><span class="p">(</span><span class="n">card</span><span class="p">,</span> <span class="n">color</span><span class="p">):</span>
+    <span class="c1"># Calculate P(color | card)</span>
+    <span class="n">p_color_given_card</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">side</span> <span class="ow">in</span> <span class="n">sides</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">check_color</span><span class="p">(</span><span class="n">card</span><span class="p">,</span> <span class="n">side</span><span class="p">)</span> <span class="o">==</span> <span class="n">color</span><span class="p">:</span>
+            <span class="n">p_color_given_card</span> <span class="o">+=</span> <span class="mf">0.5</span>  <span class="c1"># 1/2 for each side</span>
+    
+    <span class="c1"># Calculate P(color)</span>
+    <span class="n">p_color</span> <span class="o">=</span> <span class="n">color_prior</span><span class="p">(</span><span class="n">color</span><span class="p">)</span>
+    
+    <span class="c1"># Calculate P(card)</span>
+    <span class="n">p_card</span> <span class="o">=</span> <span class="mi">1</span><span class="o">/</span><span class="mi">3</span>  <span class="c1"># Equal probability for each card</span>
+    
+    <span class="c1"># Apply Bayes' rule</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">p_color_given_card</span> <span class="o">*</span> <span class="n">p_card</span><span class="p">)</span> <span class="o">/</span> <span class="n">p_color</span>
+
+<span class="c1"># Calculate and display prior probabilities</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Prior probabilities of colors:"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"P(RED) = </span><span class="si">{</span><span class="n">color_prior</span><span class="p">(</span><span class="n">Color</span><span class="o">.</span><span class="n">RED</span><span class="p">)</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"P(BLUE) = </span><span class="si">{</span><span class="n">color_prior</span><span class="p">(</span><span class="n">Color</span><span class="o">.</span><span class="n">BLUE</span><span class="p">)</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+<span class="c1"># Display the full probability table</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">Full probability table:"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Card | Side 1 | Side 2"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"----------------------"</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">card</span> <span class="ow">in</span> <span class="n">cards</span><span class="p">:</span>
+    <span class="n">side1</span> <span class="o">=</span> <span class="s2">"RED"</span> <span class="k">if</span> <span class="n">check_color</span><span class="p">(</span><span class="n">card</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">==</span> <span class="n">Color</span><span class="o">.</span><span class="n">RED</span> <span class="k">else</span> <span class="s2">"BLUE"</span>
+    <span class="n">side2</span> <span class="o">=</span> <span class="s2">"RED"</span> <span class="k">if</span> <span class="n">check_color</span><span class="p">(</span><span class="n">card</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="n">Color</span><span class="o">.</span><span class="n">RED</span> <span class="k">else</span> <span class="s2">"BLUE"</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">card</span><span class="o">+</span><span class="mi">1</span><span class="si">:</span><span class="s2">4d</span><span class="si">}</span><span class="s2"> | </span><span class="si">{</span><span class="n">side1</span><span class="si">:</span><span class="s2">6s</span><span class="si">}</span><span class="s2"> | </span><span class="si">{</span><span class="n">side2</span><span class="si">:</span><span class="s2">6s</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+<span class="c1"># Calculate and display posterior probabilities</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">Posterior probabilities of cards given color:"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">Given RED:"</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">card</span> <span class="ow">in</span> <span class="n">cards</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"P(card </span><span class="si">{</span><span class="n">card</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2"> | RED) = </span><span class="si">{</span><span class="n">card_posterior</span><span class="p">(</span><span class="n">card</span><span class="p">,</span><span class="w"> </span><span class="n">Color</span><span class="o">.</span><span class="n">RED</span><span class="p">)</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">Given BLUE:"</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">card</span> <span class="ow">in</span> <span class="n">cards</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"P(card </span><span class="si">{</span><span class="n">card</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2"> | BLUE) = </span><span class="si">{</span><span class="n">card_posterior</span><span class="p">(</span><span class="n">card</span><span class="p">,</span><span class="w"> </span><span class="n">Color</span><span class="o">.</span><span class="n">BLUE</span><span class="p">)</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
