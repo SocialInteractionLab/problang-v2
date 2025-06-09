@@ -17,7 +17,7 @@ $(document).ready(function() {
             path: "."
         },
         // Selector for code cells
-        selector: "[data-executable='true']",
+        selector: "[data-thebe-executable='true']",
         // Options for the code cells
         requestKernel: true,
         predefinedOutput: true,
@@ -31,13 +31,29 @@ $(document).ready(function() {
         const $runButton = $('<button class="thebe-run-button" disabled>▶ Run (Activate kernel first)</button>');
         $runButton.click(function() {
             if (isKernelReady) {
-                // Execute the cell
-                const kernel = window.thebeKernel;
-                if (kernel) {
-                    const code = $this.find('code').text();
-                    kernel.execute(code).then(function(result) {
-                        console.log('Execution result:', result);
-                    });
+                // Enable ThebeLab on this cell and execute
+                const codeElement = $this.find('code')[0];
+                if (codeElement) {
+                    // Set ThebeLab attributes to make it executable
+                    $this.attr('data-thebe-executable', 'true');
+                    
+                    // Try to trigger execution using ThebeLab's method
+                    try {
+                        thebelab.run(codeElement);
+                        console.log('Code execution triggered');
+                    } catch (error) {
+                        console.warn('Direct execution failed, trying alternative:', error);
+                        
+                        // Fallback: create a ThebeLab cell manually
+                        const code = codeElement.textContent;
+                        if (window.thebeKernel && window.thebeKernel.execute) {
+                            window.thebeKernel.execute(code).then(function(result) {
+                                console.log('Execution result:', result);
+                            });
+                        } else {
+                            console.error('No execution method available');
+                        }
+                    }
                 }
             }
         });
@@ -57,8 +73,17 @@ $(document).ready(function() {
             // Enable run buttons
             $('.thebe-run-button').prop('disabled', false).text('▶ Run');
             
-            // Store kernel reference
-            window.thebeKernel = thebelab.manager.kernel;
+            // Store kernel reference - try different API access patterns
+            if (thebelab && thebelab.manager && thebelab.manager.kernel) {
+                window.thebeKernel = thebelab.manager.kernel;
+                console.log('Kernel stored via manager');
+            } else if (thebelab && thebelab.kernel) {
+                window.thebeKernel = thebelab.kernel;
+                console.log('Kernel stored via direct access');
+            } else {
+                console.log('Kernel reference not found, but ThebeLab is ready');
+                window.thebeKernel = null;
+            }
             
         }).catch(function(error) {
             console.error('Failed to start ThebeLab kernel:', error);

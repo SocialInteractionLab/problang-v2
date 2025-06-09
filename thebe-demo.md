@@ -24,7 +24,7 @@ print("Simple array computation:")
 print("x =", x)
 print("y = x^2 =", y)
 ```
-{: data-executable="true"}
+{: data-executable="true" data-thebe-executable="true"}
 
 ## Basic memo Example
 
@@ -51,7 +51,7 @@ except ImportError as e:
     print("❌ memo not available:", e)
     print("This is expected if JAX couldn't be installed in the Binder environment")
 ```
-{: data-executable="true"}
+{: data-executable="true" data-thebe-executable="true"}
 
 ## JAX Integration
 
@@ -70,7 +70,7 @@ result = jax_example()
 print("JAX computation results:")
 print(result)
 ```
-{: data-executable="true"}
+{: data-executable="true" data-thebe-executable="true"}
 
 ## Interactive Visualization
 
@@ -90,7 +90,7 @@ plt.ylabel('sin(x)')
 plt.grid(True)
 plt.show()
 ```
-{: data-executable="true"}
+{: data-executable="true" data-thebe-executable="true"}
 
 ## Instructions
 
