@@ -10,7 +10,7 @@ theme: minima
 
 # Kramdown settings for math support
 kramdown:
-  math_engine: mathjax
+  math_engine: katex
 
 # Collections
 collections:
