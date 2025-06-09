@@ -2,8 +2,6 @@
 layout: default
 ---
 
-# Neuro-Symbolic Models of Language Use: A Computational Approach to Pragmatic Reasoning
-
 **Note: This is a work in progress, being actively developed for a Summer 2025 workshop at the Stanford Social Interaction Lab.**
 
 This course introduces a modern computational framework for understanding language use that bridges formal models of pragmatic reasoning with the rich representational capabilities of neural language models. As large language models (LLMs) demonstrate increasingly sophisticated linguistic behaviors, the need for principled, interpretable models of pragmatic reasoning becomes ever more critical. This course explores how neuro-symbolic approaches can provide both the formal rigor needed to understand the computational principles underlying communication and the flexibility to operate over natural language at scale.
@@ -45,7 +43,7 @@ The course employs `memo`, a modern probabilistic programming language designed 
 
 ## Citation
 
-[Robert D. Hawkins]. Neuro-Symbolic Models of Language Use. Retrieved from https://neuroprag.org.
+[Robert D. Hawkins]. ProbLang v2: A Computational Approach to Pragmatic Reasoning. Retrieved from https://hawkrobe.github.io/probLang-memo.
 
 *Based on the original [Probabilistic Language Understanding](https://www.problang.org/) by G. Scontras, M. H. Tessler, and M. Franke.*
 
@@ -58,4 +56,4 @@ The course employs `memo`, a modern probabilistic programming language designed 
 
 ## Acknowledgments
 
-This webbook builds closely on the foundation laid by Scontras, Tessler, and Franke in their Probabilistic Language Understanding course. We are grateful for their pioneering work in making formal pragmatics accessible through probabilistic programming. We also thank Kartik Chandra and the memo development team for creating a tool that makes neuro-symbolic modeling both expressive and efficient.
+This webbook builds closely on the foundation laid by Scontras, Tessler, and Franke in their Probabilistic Language Understanding course. We are grateful for their pioneering work in making formal pragmatics accessible through probabilistic programming. We also thank Kartik Chandra and other memo developers for creating a tool that makes neuro-symbolic modeling both expressive and efficient.

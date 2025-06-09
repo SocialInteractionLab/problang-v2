@@ -1,4 +1,4 @@
-// ThebeLab configuration for neuroPrag site
+// ThebeLab configuration for ProbLang v2 site
 $(document).ready(function() {
     let isKernelReady = false;
     let kernelRequestInProgress = false;
