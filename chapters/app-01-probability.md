@@ -73,13 +73,11 @@ $$P(\text{blue-blue} \mid \text{obs. blue}) = \frac{P(\text{obs. blue} \mid \tex
 
 $$ = \frac{1 \cdot \frac{1}{3}}{\frac{1}{2}} = \frac{2}{3} $$
 
-
 ##### Bayes rule in memo
 
-To implement Bayes rule in memo, we specify the observation-generating process using memo's sampling and inference constructs. First, let's define our shared code:
+Let's implement this in memo and see the results:
 
-<script type="py-editor">
-# Shared definitions
+```python
 import jax
 import jax.numpy as jnp
 from enum import IntEnum
@@ -106,29 +104,7 @@ def color_prior(color):
             if check_color(card, side) == color:
                 total_prob += 1/6  # 1/3 for card * 1/2 for side
     return total_prob
-</script>
 
-Now we can calculate and display the prior probabilities:
-
-<script type="py-editor">
-# Calculate and display prior probabilities
-print("Prior probabilities of colors:")
-print(f"P(RED) = {color_prior(Color.RED):.4f}")
-print(f"P(BLUE) = {color_prior(Color.BLUE):.4f}")
-
-# Display the full probability table
-print("\nFull probability table:")
-print("Card | Side 1 | Side 2")
-print("----------------------")
-for card in cards:
-    side1 = "RED" if check_color(card, 0) == Color.RED else "BLUE"
-    side2 = "RED" if check_color(card, 1) == Color.RED else "BLUE"
-    print(f"{card+1:4d} | {side1:6s} | {side2:6s}")
-</script>
-
-Now we can implement Bayesian reasoning to calculate the posterior probabilities:
-
-<script type="py-editor">
 def card_posterior(card, color):
     # Calculate P(color | card)
     p_color_given_card = 0
@@ -145,51 +121,176 @@ def card_posterior(card, color):
     # Apply Bayes' rule
     return (p_color_given_card * p_card) / p_color
 
+# Calculate and display prior probabilities
+print("Prior probabilities of colors:")
+print(f"P(RED) = {color_prior(Color.RED):.4f}")
+print(f"P(BLUE) = {color_prior(Color.BLUE):.4f}")
+
+# Display the full probability table
+print("\nFull probability table:")
+print("Card | Side 1 | Side 2")
+print("----------------------")
+for card in cards:
+    side1 = "RED" if check_color(card, 0) == Color.RED else "BLUE"
+    side2 = "RED" if check_color(card, 1) == Color.RED else "BLUE"
+    print(f"{card+1:4d} | {side1:6s} | {side2:6s}")
+
 # Calculate and display posterior probabilities
-print("Posterior probabilities of cards given color:")
+print("\nPosterior probabilities of cards given color:")
 print("\nGiven RED:")
 for card in cards:
     print(f"P(card {card+1} | RED) = {card_posterior(card, Color.RED):.4f}")
 print("\nGiven BLUE:")
 for card in cards:
     print(f"P(card {card+1} | BLUE) = {card_posterior(card, Color.BLUE):.4f}")
-</script>
-
-This implementation shows how we can model basic Bayesian reasoning in Python. Let's break it down:
-
-1. We're interested in building probability distributions depending on two axes:
-   - `card`: which card we're interested in (0, 1, or 2)
-   - `color`: the color we observed (RED or BLUE)
-
-2. The `check_color` function defines the color configuration of each card:
-   - Card 0: both sides red
-   - Card 1: one red, one blue
-   - Card 2: both sides blue
-
-3. The `color_prior` function calculates the prior probability of seeing a particular color by:
-   - Iterating through all possible card and side combinations
-   - Adding up the probabilities when the color matches
-
-4. The `card_posterior` function implements Bayes' rule to calculate:
-   - P(color | card): probability of seeing a color given a card
-   - P(color): prior probability of seeing a color
-   - P(card): prior probability of selecting a card
-   - Returns P(card | color) using Bayes' rule
-
-When we run this model, it gives us probabilities like:
 ```
-P(1 | RED) = 0.3333
-P(2 | RED) = 0.0000
-P(3 | RED) = 0.6667
+{: data-executable="true" data-thebe-executable="true"}
 
-P(1 | BLUE) = 0.3333
-P(2 | BLUE) = 0.6667
-P(3 | BLUE) = 0.0000
+##### Working with memo: From simple enumeration to Bayesian inference
+
+The `memo` library provides a powerful domain-specific language for expressing probabilistic computations. Let's work through several examples that demonstrate key concepts in probability and Bayesian reasoning.
+
+**Example 1: Simple enumeration over discrete domains**
+
+We start with the simplest case - enumerating over a discrete domain like coin flips:
+
+```python
+import jax
+import jax.numpy as jnp
+from enum import IntEnum
+from memo import memo
+from memo import domain as product
+
+class Coin(IntEnum):
+    TAILS = 0
+    HEADS = 1
+
+@memo
+def f_enum[_c: Coin]():
+    return _c
+
+res = f_enum(print_table=True)
 ```
+{: data-executable="true" data-thebe-executable="true"}
 
-These probabilities make intuitive sense:
-- If we see red, it can't be card 2 (which has both sides blue)
-- If we see blue, it can't be card 0 (which has both sides red)
-- Card 1 (with one red and one blue side) is equally likely in both cases
+**Example 2: Computing conditional probabilities**
 
-> **Exercise:** Implement Bayesian reasoning for the 2-box problem in Python. Jones has two boxes. One contains two gold coins, the other one gold and one silver coin. Jones selects a random box and picks a random coin from it. He shows you a gold coin. What is the probability that the other coin in the box from which Jones presented the gold coin to you is also gold?
+Next, we compute probabilities over the same domain using memo's probabilistic constructs:
+
+```python
+@memo
+def g[_c: Coin]():
+    observer: given(c in Coin, wpp=1)
+    return Pr[observer.c == _c]
+
+res = g(print_table=True)
+```
+{: data-executable="true" data-thebe-executable="true"}
+
+**Example 3: Multiple coin flips**
+
+Now let's consider flipping two coins and computing the probability that at least one comes up heads:
+
+```python
+SampleSpaceTwoFlips = product(
+    f1=len(Coin),
+    f2=len(Coin),
+)
+
+@jax.jit
+def sumflips(s):
+    return SampleSpaceTwoFlips.f1(s) + SampleSpaceTwoFlips.f2(s)
+
+@memo
+def flip_twice():
+    student: given(s in SampleSpaceTwoFlips, wpp=1)
+    return Pr[sumflips(student.s) >= 1]
+
+flip_twice(print_table=True)
+```
+{: data-executable="true" data-thebe-executable="true"}
+
+**Example 4: Multiple coin flips with constraints**
+
+For a more complex example, let's flip 10 coins and compute the probability of getting between 4 and 6 heads (inclusive):
+
+```python
+nflips = 10
+SampleSpace = product(**{f"f{i}": len(Coin) for i in range(1, nflips + 1)})
+
+@jax.jit
+def sumseq(s):
+    return jnp.sum(jnp.array([SampleSpace._tuple(s)]))
+
+@memo
+def flip_n():
+    student: given(s in SampleSpace, wpp=1)
+    return Pr[sumseq(student.s) >= 4, sumseq(student.s) <= 6]
+
+flip_n(print_table=True)
+```
+{: data-executable="true" data-thebe-executable="true"}
+
+**Example 5: The 3-card problem in memo**
+
+Now let's implement the 3-card problem using memo's probabilistic programming constructs. This demonstrates how memo can naturally express complex probabilistic reasoning:
+
+```python
+class Color(IntEnum):
+    RED = 0
+    BLUE = 1
+
+cards = jnp.arange(3)
+sides = jnp.arange(2)
+
+@jax.jit
+def check_color(card, side):
+    return jnp.array([
+        [0, 0],  # Card 0: both sides red
+        [0, 1],  # Card 1: one red, one blue  
+        [1, 1]   # Card 2: both sides blue
+    ])[card][side]
+
+# let's compute the prior probability of seeing each color
+@memo
+def color_prior[_c: Color]():
+    agent: given(card in cards, wpp=1)
+    agent: given(side in sides, wpp=1)
+    return Pr[check_color(agent.card, agent.side) == _c]
+
+color_prior(print_table=True)
+```
+{: data-executable="true" data-thebe-executable="true"}
+
+**Example 6: Bayesian inference for the 3-card problem**
+
+Finally, let's implement the full Bayesian inference for the 3-card problem. This shows how memo can express complex inference scenarios with observers, agents, and conditional reasoning:
+
+```python
+@memo
+def card_posterior[_card: cards, _color: Color]():
+    observer: knows(_card, _color)
+    observer: thinks[
+        friend: chooses(card in cards, wpp=1),
+        friend: chooses(side in sides, wpp=1),
+        friend: given(color in Color, 
+                        wpp=color==check_color(card, side))
+    ]
+    observer: observes [friend.color] is _color
+    return observer[Pr[friend.card == _card]]
+
+res1 = card_posterior(print_table=True, return_aux=True, return_xarray=True)
+
+# Extract and display the posterior probabilities
+xa = res1.aux.xarray
+pr = xa.loc[:, 'RED']
+print(f"        P(card 1 | RED) = {pr.loc[0].sum():.4f}")
+print(f"        P(card 2 | RED) = {pr.loc[1].sum():.4f}")
+print(f"        P(card 3 | RED) = {pr.loc[2].sum():.4f}")
+print("\n")
+pr2 = xa.loc[:, 'BLUE']
+print(f"        P(card 1 | BLUE) = {pr2.loc[0].sum():.4f}")
+print(f"        P(card 2 | BLUE) = {pr2.loc[1].sum():.4f}")
+print(f"        P(card 3 | BLUE) = {pr2.loc[2].sum():.4f}")
+```
+{: data-executable="true" data-thebe-executable="true"}
