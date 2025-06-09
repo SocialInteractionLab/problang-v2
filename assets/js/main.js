@@ -3,21 +3,21 @@
 
 // Github links
 
-var github_repository = "http://github.com/gscontras/probLang/";
+var github_repository = "https://github.com/hawkrobe/probLang-memo/";
 
 function markdown_url(page_url) {
     return page_url.slice(0, -4) + "md";
 }
 
 function github_edit_url(page_url) {
-    return github_repository + "edit/gh-pages" + markdown_url(page_url);
+    return github_repository + "edit/main" + markdown_url(page_url);
 }
 
 function github_page_url(page_url) {
     if ((page_url == "/index.html") || (page_url == "/")) {
-        return github_repository + "blob/gh-pages/chapters";
+        return github_repository + "blob/main/chapters";
     } else {
-        return github_repository + "blob/gh-pages" + markdown_url(page_url);
+        return github_repository + "blob/main" + markdown_url(page_url);
     };
 }
 
@@ -132,7 +132,7 @@ function format_refp(citation) {
 }
 
 
-$.get("/probLang-memo/bibliography.bib", function (bibtext) {
+$.get("/bibliography.bib", function (bibtext) {
     $(function () {
         var bibs = doParse(bibtext);
         $.each(
