@@ -77,7 +77,7 @@ $$P(\text{blue-blue} \mid \text{obs. blue}) = \frac{P(\text{obs. blue} \mid \tex
 
 $$ = \frac{1 \cdot \frac{1}{3}}{\frac{1}{2}} = \frac{2}{3} $$
 
-Let's implement this in Python and see the results:
+Let's write out this computation in "base" Python and check the results:
 
 ```python
 import jax
@@ -90,36 +90,42 @@ class Color(IntEnum):
     RED = 0
     BLUE = 1
 
-cards = jnp.arange(3)
-sides = jnp.arange(2)
+class Card(IntEnum):
+    RED_RED = 0
+    RED_BLUE = 1
+    BLUE_BLUE = 2
+
+class Side(IntEnum):
+    FIRST = 0
+    SECOND = 1
 
 # Define the card-side color matrix upfront
 card_colors = jnp.array([
-    [0, 0],  # Card 0: both sides red
-    [0, 1],  # Card 1: one red, one blue
-    [1, 1]   # Card 2: both sides blue
-])
+        [Color.RED, Color.RED],      # RED_RED card
+        [Color.RED, Color.BLUE],     # RED_BLUE card  
+        [Color.BLUE, Color.BLUE]     # BLUE_BLUE card
+    ])
 
 @jax.jit
 def check_color(card, side):
     return card_colors[card][side]
 
 def color_prior(color):
-    # Count how many sides have this color and divide by total sides
+    # Count how many of the total sides have this color 
     return jnp.sum(card_colors == color) / card_colors.size
 
 def card_prior(card):
-    # Uniform prior over cards
-    return 1/3
+    # Assume a uniform prior over cards
+    return 1 / len(Card)
 
 def card_posterior(card, color):
     # P(color | card): proportion of sides on this card that match the color
     likelihood = jnp.mean(card_colors[card] == color)
     
-    # P(card): prior probability of selecting this card
+    # P(card): look up prior probability of selecting this card
     prior = card_prior(card)
     
-    # P(color): marginal probability of the color
+    # P(color): look up marginal probability of the color
     evidence = color_prior(color)
     
     # Bayes' rule: P(card | color) = P(color | card) * P(card) / P(color)
@@ -173,22 +179,20 @@ It's much better to work in a *probabilistic programming language* (PPL) like `m
 
 #### The `memo` language
 
-`memo` is a domain-specific probabilistic programming language designed specifically for modeling reasoning about reasoning ([Chandra et al., 2025](https://osf.io/preprints/psyarxiv/pt863_v3)). Unlike general-purpose probabilistic programming languages, `memo` is tailored for expressing models of cognitive processes, social cognition, and pragmatic reasoning.
+`memo` is a domain-specific probabilistic programming language designed specifically for modeling reasoning about reasoning ([Chandra et al., 2025](https://osf.io/preprints/psyarxiv/pt863_v3)). 
+Unlike general-purpose probabilistic programming languages, `memo` is tailored for expressing models of cognitive processes, social cognition, and pragmatic reasoning.
+It has some features that make it particularly well-suited for modeling the kinds of sophisticated reasoning processes involved in computational pragmatics and language understanding.
 
-The language provides several key innovations:
+**Agents and observers**: `memo` makes explicit the distinction between different reasoning agents. You can model an `observer` who has certain beliefs about how a `friend` or `agent` makes decisions. This is crucial for keeping track of who knows what. 
 
-**Agents and observers**: `memo` makes explicit the distinction between different reasoning agents. You can model an `observer` who has certain beliefs about how a `friend` or `agent` makes decisions. This is crucial for modeling social cognition and theory of mind.
+**Recursive reasoning**: The language naturally expresses hierarchical reasoning structures where agents reason about other agents' reasoning. For example, an observer can model what a friend thinks about a third party's beliefs.
 
-**Nested reasoning**: The language naturally expresses hierarchical reasoning structures where agents reason about other agents' reasoning. For example, an observer can model what a friend thinks about a third party's beliefs.
-
-**Declarative syntax**: `memo` uses a declarative syntax that closely mirrors how cognitive scientists think about mental models. Rather than writing procedural code, you declare the structure of agents' beliefs and reasoning processes.
-
-**Automatic inference**: The language automatically compiles high-level model descriptions into efficient inference procedures, handling the computational complexity of nested probabilistic reasoning.
+**Declarative syntax**: `memo` uses a declarative syntax that closely mirrors how cognitive scientists think about mental models. Rather than writing code manually implementing inference, you simply declare the structure of agents' beliefs and reasoning processes.
 
 **Integration with JAX**: `memo` is built on top of JAX, providing automatic differentiation and GPU acceleration for scalable probabilistic computation.
 
-These features make `memo` particularly well-suited for modeling the kinds of sophisticated reasoning processes involved in language understanding, social cognition, and decision-making under uncertainty.
-Let's work through several examples that demonstrate key concepts in probability and Bayesian reasoning. 
+
+In this section, we'll work through several examples that demonstrate key concepts in probability and Bayesian reasoning. 
 These examples are drawn from the course notes for ["Computational Models of Social Cognition"](https://comosoco.daeh.info/) by Dae Houlihan. 
 
 **Example 1: Enumerating over outcomes**
@@ -218,17 +222,12 @@ res = coin_outcomes(print_table=True)
 {: data-executable="true" data-thebe-executable="true"}
 
 This teensy model simply returns the possible outcomes of the coin flip. 
-It demonstrates `memo`'s core enumeration mechanism - rather than calling the function with specific arguments, `memo` considers all possible arguments and their outcomes.
+It demonstrates `memo`'s basic enumeration mechanism - rather than calling the function with specific arguments, `memo` considers all possible arguments and their outcomes.
 
 **Example 2: Computing a distribution**
 
-What makes `memo` a probabilistic programming language is that it natively builds probability distributions. We'll model an agent (called `observer`) who makes random choices and compute probabilities over those choices.
-
-The syntax `observer: given(c in Coin, wpp=1)` creates an `observer` agent who samples a value `c` from the `Coin` domain. The `wpp=1` means "with probability proportional to 1" - since both coin values get the same weight, this creates a uniform distribution.
-
-The `Pr[observer.c == _c]` syntax asks: "What's the probability that the observer's coin choice equals the value `_c`?"
-
-By convention, we will we variables with underscores like `_c` to indicate that these are the values we're building the distribution over.
+What makes `memo` a probabilistic programming language is that it natively builds probability distributions. 
+To take this it for a spin, we'll model an agent (called `observer`) who makes random choices and compute probabilities over those choices.
 
 ```python
 @memo
@@ -241,10 +240,13 @@ res = coin_flip_prior(print_table=True)
 {: data-executable="true" data-thebe-executable="true"}
 
 This function computes the probability of each coin outcome. Since we have a uniform distribution over two outcomes, each should have probability 0.5.
+The syntax `observer: given(c in Coin, wpp=1)` creates an `observer` agent who samples a value `c` from the `Coin` domain. The `wpp=1` means "with probability proportional to 1" - since both coin values get the same weight, this creates a uniform distribution.
+The `Pr[observer.c == _c]` syntax asks: "What's the probability that the observer's coin choice equals the value `_c`?"
+By convention, we will write variables with underscores like `_c` to indicate that these are the values we're building the distribution over.
 
-**Example 3: Conditioning**
+**Example 3: Events**
 
-Now let's consider flipping two coins and computing the probability that at least one comes up heads. This shows how we compute *conditional probabilities* in memo. 
+Now let's consider flipping two coins and computing the probability that at least one comes up heads. 
 
 ```python
 SampleSpaceTwoFlips = product(
@@ -265,7 +267,7 @@ flip_twice(print_table=True)
 ```
 {: data-executable="true" data-thebe-executable="true"}
 
-**Example 4: More complex conditions**
+**Example 4: More complex events**
 
 For a more complex example, let's flip 10 coins and compute the probability of getting between 4 and 6 heads (inclusive):
 
@@ -288,36 +290,12 @@ flip_n(print_table=True)
 
 **Example 5: The 3-card problem**
 
-Now we're ready to tackle the 3-card problem using `memo`. This example demonstrates how `memo` can naturally express complex probabilistic reasoning, including both prior beliefs and Bayesian inference.
-
-Recall our setup: Jones has three cards (red-red, red-blue, blue-blue), randomly selects one, randomly chooses a side, and shows you a blue side. What's the probability that the hidden side is also blue?
-
-**Step 1: Computing the prior distribution over colors**
-
+Now we're ready to tackle the 3-card problem using `memo`. 
+Recall our setup: Jones has three cards (red-red, red-blue, blue-blue), randomly selects one, randomly chooses a side, and shows you a blue side. 
+What's the probability that the hidden side is also blue?
 Before seeing any evidence, let's compute the probability of seeing each color. We model an agent who randomly selects a card and a side:
 
 ```python
-class Color(IntEnum):
-    RED = 0
-    BLUE = 1
-
-class Card(IntEnum):
-    RED_RED = 0
-    RED_BLUE = 1
-    BLUE_BLUE = 2
-
-class Side(IntEnum):
-    FIRST = 0
-    SECOND = 1
-
-@jax.jit
-def check_color(card, side):
-    return jnp.array([
-        [Color.RED, Color.RED],      # RED_RED card
-        [Color.RED, Color.BLUE],     # RED_BLUE card  
-        [Color.BLUE, Color.BLUE]     # BLUE_BLUE card
-    ])[card][side]
-
 @memo
 def color_prior[_c: Color]():
     agent: given(card in Card, wpp=1)
@@ -329,9 +307,11 @@ color_prior(print_table=True)
 ```
 {: data-executable="true" data-thebe-executable="true"}
 
-**Step 2: Bayesian inference to find the posterior**
-
-Now for the key question: given that we observed a blue side, what's the probability each card was selected? This is where `memo`'s power really shines - we can model an observer reasoning about what a friend (Jones) was thinking:
+So far we haven't *inferered* anything, we've just set up a prior distribution. 
+This is sometimes called the "forward model" or the "generative model". 
+Now for the key question: given that we observed a blue side, what's the probability each card was selected? 
+This is where `memo`'s power really shines. 
+We can model this as an observer reasoning about what a friend (Jones) was thinking when they see the card:
 
 ```python
 @memo
@@ -366,4 +346,6 @@ print(f"        P(card 3 | BLUE) = {pr_blue.loc[2].sum():.4f}")
 ```
 {: data-executable="true" data-thebe-executable="true"}
 
-The `observer: thinks[...]` block models the observer's beliefs about how Jones (the `friend`) makes decisions. The `observer: observes [friend.color] is _color` line represents conditioning on the observation. Notice how the posterior probabilities match our earlier calculations - the blue-blue card (card 3) is twice as likely as the red-blue card (card 2) when we observe blue!
+The `observer: thinks[...]` block models the observer's expectations about how Jones (the `friend`) makes decisions (in this case, drawing cards and sides randomly). 
+The `observer: observes [friend.color] is _color` line represents conditioning on the observation. 
+Notice how the posterior probabilities match our earlier calculations - the blue-blue card (card 3) is twice as likely as the red-blue card (card 2) when we observe blue!
