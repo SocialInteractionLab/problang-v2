@@ -100,11 +100,8 @@ test_literal_listener(Utterance.BLUE)
 
 > **Exercises:**
 > 1. Try testing the literal listener's behavior with different utterances. What happens when you use `Utterance.SQUARE` or `Utterance.GREEN`?
-
 > 2. Add a fourth object (e.g., a green circle) to the scenario. How does this change the literal listener's behavior?
-
 > 3. In this example, we implicitly imposed a uniform prior over the three objects. Where in the model is this assumption being made? What happens when the listener's beliefs are not uniform over the possible objects of reference, e.g., the "green square" is very salient? (Hint: think about the `wpp` term in the `chooses` statement.)
-
 > 4. The denotation function is manually specified as a Boolean matrix for this simple example. Can you make this a function of object properties to make the code more easily maintainable for different sets of utterances and objects? Note that we're under some strict constraints from JAX here: for the code to compile and run fast, we need to operate with arrays. 
 
 Fantastic! We now have a way of specifying how a listener will interpret the truth functional meaning of a referential utterance in a given context of objects. Let's unpack some of the `memo` syntax. 
@@ -183,7 +180,8 @@ which expands to:
 
 $$P_{S_1}(u \mid s) \propto \exp(\alpha (\log L_{0}(s\mid u) - C(u)))\,.$$
 
-The following code implements this model of the speaker:
+The following code implements this model of the speaker.
+In the following code, we assume that all utterances are equally costly (i.e., $$C(u) = C(u')$$ for all $$u, u'$$) (see [Appendix Chapter 3](app-03-costs.html) for more on message costs and how to implement them).
 
 ```python
 @memo
@@ -229,11 +227,12 @@ def test_pragmatic_listener(utterance, alpha=1.0):
 
 test_pragmatic_listener(Utterance.BLUE)        
 ```
+{: data-executable="true" data-thebe-executable="true"}
+
 ### Putting it all together
 
-Let's explore what happens when we put all of the previous agent models together. 
-In the following code, we assume that all utterances are equally costly (i.e., $$C(u) = C(u')$$ for all
-$$u, u'$$) (see [Appendix Chapter 3](app-03-costs.html) for more on message costs and how to implement them).
+So far, we've implemented the RSA framework by defining separate functions for each level of reasoning: `L0` for literal listeners, `S1` for pragmatic speakers, and `L1` for pragmatic listeners. While this approach works and gives us the correct results, it doesn't leverage the full power of memo, which makes the recursive reasoning structure more transparent. 
+We can combine all these pieces into a single listener function that takes the level of recursion as an argument. This unified approach allows us to easily explore different depths of reasoning by simply changing a parameter. 
 
 ```python
 @memo
@@ -263,6 +262,7 @@ def test_pragmatic_listener(utterance, alpha=1.0):
 
 test_pragmatic_listener(Utterance.BLUE) 
 ```
+{: data-executable="true" data-thebe-executable="true"}
 
 
 > **Exercises:**
