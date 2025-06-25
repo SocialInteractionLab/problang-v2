@@ -13,7 +13,7 @@ The probabilistic pragmatics approach leverages the tools of structured probabil
 
 ### Introducing the Rational Speech Act framework
 
-The Rational Speech Act (RSA) framework views communication as recursive reasoning between a speaker and a listener. The listener interprets the speaker’s utterance by reasoning about a cooperative speaker trying to inform a naive listener about some state of affairs. Using Bayesian inference, the listener reasons about what the state of the world is likely to be given that a speaker produced some utterance, knowing that the speaker is reasoning about how a listener is most likely to interpret that utterance. Thus, we have (at least) three levels of inference. At the top, the sophisticated, **pragmatic listener**, $$L_{1}$$, reasons about the **pragmatic speaker**, $$S_{1}$$, and infers the state of the world $$s$$ given that the speaker chose to produce the utterance $$u$$. The speaker chooses $$u$$ by maximizing the probability that a naive, **literal listener**, $$L_{0}$$, would correctly infer the state of the world $$s$$ given the literal meaning of $$u$$.
+The Rational Speech Act (RSA) framework views communication as recursive reasoning between a speaker and a listener. The listener interprets the speaker's utterance by reasoning about a cooperative speaker trying to inform a naive listener about some state of affairs. Using Bayesian inference, the listener reasons about what the state of the world is likely to be given that a speaker produced some utterance, knowing that the speaker is reasoning about how a listener is most likely to interpret that utterance. Thus, we have (at least) three levels of inference. At the top, the sophisticated, **pragmatic listener**, $$L_{1}$$, reasons about the **pragmatic speaker**, $$S_{1}$$, and infers the state of the world given that the speaker chose to produce the utterance $$u$$. The speaker chooses $$u$$ by maximizing the probability that a naive, **literal listener**, $$L_{0}$$, would correctly infer the state of the world given the literal meaning of $$u$$.
 
 To make this architecture more intelligible, let's consider a concrete example and a vanilla version of an RSA model. In its initial formulation, reft:frankgoodman2012 use the basic RSA framework to model referent choice in efficient communication. Let's suppose that there are only three objects that the speaker and listener want to talk about, as in Fig. 1.
 
@@ -25,9 +25,9 @@ number = "1"
 width="400px" 
 %}
 
-In a **reference game**, a speaker wants to refer to one of the given objects. To simplify, we assume that the speaker may only choose one property (see below) with which to do so. In the example of Fig. 1, the **set of world states**
+In a **reference game**, a speaker wants to refer to one of the given objects. To simplify, we assume that the speaker may only choose one property (see below) with which to do so. In the example of Fig. 1, the **set of objects**
 
-$$S = \{\text{blue-square}, \text{blue-circle}, \text{green-square}\}$$
+$$O = \{\text{blue-square}, \text{blue-circle}, \text{green-square}\}$$
 
 contains the three objects given. The **set of utterances**
 
@@ -35,7 +35,7 @@ $$U = \{ \text{"square"}, \text{"circle"}, \text{"green"}, \text{"blue"}  \}$$
 
 contains the four properties from which the speaker can choose.
 
-A vanilla RSA model for this scenario consists of three recursively layered, conditional probability rules for speaker production and listener interpretation. These rules are summarized in Fig. 2 and will be examined one-by-one below. The overal idea is that a **pragmatic speaker** $$S_{1}$$ chooses a word $$u$$ to best signal an object $$s$$ to a **literal listener** $$L_{0}$$, who interprets $$u$$ as true and finds the objects that are compatible with the meaning of $$u$$. The **pragmatic listener** $$L_{1}$$ reasons about the speaker’s reasoning and interprets $$u$$ accordingly, using Bayes' rule; $$L_1$$ also weighs in the prior probability of objects in the scenario (i.e., an object’s salience, $$P(s)$$). By formalizing the contributions of salience and efficiency, the RSA framework provides an information-theoretic definition of informativeness in pragmatic inference.  
+A vanilla RSA model for this scenario consists of three recursively layered, conditional probability rules for speaker production and listener interpretation. These rules are summarized in Fig. 2 and will be examined one-by-one below. The overal idea is that a **pragmatic speaker** $$S_{1}$$ chooses a word $$u$$ to best signal an object $$o$$ to a **literal listener** $$L_{0}$$, who interprets $$u$$ as true and finds the objects that are compatible with the meaning of $$u$$. The **pragmatic listener** $$L_{1}$$ reasons about the speaker's reasoning and interprets $$u$$ accordingly, using Bayes' rule; $$L_1$$ also weighs in the prior probability of objects in the scenario (i.e., an object's salience, $$P(o)$$). By formalizing the contributions of salience and efficiency, the RSA framework provides an information-theoretic definition of informativeness in pragmatic inference.  
 
 {% include figure.html 
 file="../images/rsa_schema.png" 
@@ -46,118 +46,136 @@ number = "2"
 
 ### Literal listeners
 
-At the base of this reasoning, the naive, literal listener $$L_{0}$$ interprets an utterance according to its meaning. That is, $$L_{0}$$ computes the probability of $$s$$ given $$u$$ according to the semantics of $$u$$ and the prior probability of $$s$$. A standard view of the semantic content of an utterance suffices: a mapping from states of the world to truth values. For example, the utterance $$\text{"blue"}$$ is true of states $$\text{blue-square}$$ and $$\text{blue-circle}$$ and false of state $$\text{green-square}$$. We write $$[\![u]\!] \colon S \mapsto \{0,1\}$$ for the denotation function of this standard, Boolean semantics of utterances in terms of states. The literal listener is then defined via a function $$P_{L_{0}} \colon U \mapsto \Delta^S$$ that maps each utterance to a probability distribution over world states, like so:
+At the base of this reasoning, the naive, literal listener $$L_{0}$$ interprets an utterance according to its meaning. That is, $$L_{0}$$ computes the probability of $$o$$ given $$u$$ according to the semantics of $$u$$ and the prior probability of $$o$$. A standard view of the semantic content of an utterance suffices: a mapping from states of the world to truth values. For example, the utterance $$\text{"blue"}$$ is true of states $$\text{blue-square}$$ and $$\text{blue-circle}$$ and false of state $$\text{green-square}$$. We write $$[\![u]\!] \colon O \mapsto \{0,1\}$$ for the denotation function of this standard, Boolean semantics of utterances in terms of states. The literal listener is then defined via a function $$P_{L_{0}} \colon U \mapsto \Delta^S$$ that maps each utterance to a probability distribution over world states, like so:
 
-$$P_{L_{0}}(s\mid u) \propto [\![u]\!](s) \cdot P(s)$$
+$$P_{L_{0}}(o\mid u) \propto [\![u]\!](o) \cdot P(o)$$
 
-Here, $$P(s)$$ is an a priori belief regarding which state or object the speaker is likely to refer to in general. These prior beliefs can capture general world knowledge, perceptual salience, or other things. For the time being, we assume a flat prior belief according to which each object is equally likely. (As we move away from flat priors, we'll want to revise these assumptions so that $$L_0$$ (but not $$L_1$$!) uses a uniform prior over states. In fact, this is what reft:frankgoodman2012 assumed in their model. See [Appendix Chapter 4](app-04-BDA.html) for discussion.)
+Here, $$P(o)$$ is an a priori belief regarding which state or object the speaker is likely to refer to in general. These prior beliefs can capture general world knowledge, perceptual salience, or other things. For the time being, we assume a flat prior belief according to which each object is equally likely. (As we move away from flat priors, we'll want to revise these assumptions so that $$L_0$$ (but not $$L_1$$!) uses a uniform prior over states. In fact, this is what reft:frankgoodman2012 assumed in their model. See [Appendix Chapter 4](app-04-BDA.html) for discussion.)
 
 The literal listener rule can be written as follows:
 
-~~~~
+```python
+from memo import memo
+import jax
+import jax.numpy as np
+from enum import IntEnum
 
-// set of states (here: objects of reference)
-// we represent objects as JavaScript objects to demarcate them from utterances
-// internally we treat objects as strings nonetheless
-var objects = [{color: "blue", shape: "square", string: "blue square"},
-               {color: "blue", shape: "circle", string: "blue circle"},
-               {color: "green", shape: "square", string: "green square"}]
+# Define the objects and utterances using simple IntEnum
+class Object(IntEnum):
+    BLUE_SQUARE = 0
+    BLUE_CIRCLE = 1
+    GREEN_SQUARE = 2
 
-// set of utterances
-var utterances = ["blue", "green", "square", "circle"]
+class Utterance(IntEnum):
+    BLUE = 0
+    GREEN = 1
+    SQUARE = 2
+    CIRCLE = 3
 
-// prior over world states
-var objectPrior = function() {
-  var obj = uniformDraw(objects)
-  return obj.string 
-}
+# Denotation function: which of these utterances are true of which objects?
+@jax.jit
+def meaning(utterance, obj):
+    return np.array([
+        [True,  True,  False],  # BLUE: true for the blue objects
+        [False, False, True ],  # GREEN: true for the green objects  
+        [True,  False, True ],  # SQUARE: true for the square objects
+        [False, True,  False]   # CIRCLE: true for the circle objects
+    ])[utterance, obj]
 
-// meaning function to interpret the utterances
-var meaning = function(utterance, obj){
-  _.includes(obj, utterance)
-}
-
-// literal listener
-var literalListener = function(utterance){
-  Infer({model: function(){
-    var obj = objectPrior();
-    var uttTruthVal = meaning(utterance, obj);
-    condition(uttTruthVal == true)
-    return obj
-  }})
-}
-
-viz.table(literalListener("blue"))
-~~~~
-
+@memo
+def L0[_u: Utterance, _o: Object]():
+    listener: knows(_u)
+    listener: chooses(o in Object, wpp=meaning(_u, o))
+    return Pr[listener.o == _o]
+  
+def test_literal_listener(utterance):
+    print(f"Literal listener interpretation of '{utterance.name}':")
+    outcomes = L0()
+    for obj in Object:
+        print(f"P({obj.name} | '{utterance.name}') = {outcomes[utterance][obj]:.3f}")
+        
+test_literal_listener(Utterance.BLUE)
+```
+{: data-executable="true" data-thebe-executable="true"}
 
 > **Exercises:**
-> 1. In the model above, `objectPrior()` returns a sample from a `uniformDraw` over the possible objects of reference. What happens when the listener's beliefs are not uniform over the possible objects of reference (e.g., the "green square" is very salient)? (Hint: use a `categorical` distribution by calling `categorical({ps: [list_of_probabilities], vs: objects})`. More information about WebPPL's built-in distributions and their parameterizations can be found in the [documentation](http://webppl.readthedocs.io/en/master/distributions.html).)
-> 2. Try vizualizing the model output differently: call `viz.hist(literalListener("blue"))`, one of WebPPL's visualization functions ([WebPPL-viz](http://probmods.github.io/webppl-viz/) discusses the various visualization options).
+> 1. Try testing the literal listener's behavior with different utterances. What happens when you use `Utterance.SQUARE` or `Utterance.GREEN`?
 
+> 2. Add a fourth object (e.g., a green circle) to the scenario. How does this change the literal listener's behavior?
 
-Fantastic! We now have a way of integrating a listener's prior beliefs about the world with the truth functional meaning of an utterance.
+> 3. In this example, we implicitly imposed a uniform prior over the three objects. Where in the model is this assumption being made? What happens when the listener's beliefs are not uniform over the possible objects of reference, e.g., the "green square" is very salient? (Hint: think about the `wpp` term in the `chooses` statement.)
+
+> 4. The denotation function is manually specified as a Boolean matrix for this simple example. Can you make this a function of object properties to make the code more easily maintainable for different sets of utterances and objects? Note that we're under some strict constraints from JAX here: for the code to compile and run fast, we need to operate with arrays. 
+
+Fantastic! We now have a way of specifying how a listener will interpret the truth functional meaning of a referential utterance in a given context of objects. Let's unpack some of the `memo` syntax. 
+
+- The `knows` statement explicitly establishes that the listener agent has certain information available to them. In this case, we assume the listener heard an utterance `_u` so they can use it in their reasoning. What happens when we remove this line? 
+
+- The `chooses` statement represents the listener making a choice among options. Here, the listener is choosing an object o from the set of possible Objects. The `wpp` parameter stands for "with probability proportional to" - it determines the probability weights for each choice. In this case, `wpp=meaning(_u, o)` means the probability of choosing object o is proportional to whether the (known) utterance _u is true of that object, as determined by the meaning function. This implements the literal semantics. 
+
+- The return statement `Pr[listener.o == _o]` says that we want the probability that the listener's chosen object o equals the specific object _o that we're querying about. The `Pr[...]` syntax asks "what is the marginal probability that this condition is true?"
 
 ### Pragmatic speakers
 
-Speech acts are actions; thus, the speaker is modeled as a rational (Bayesian) actor. He chooses an action (e.g., an utterance) according to its utility. The speaker simulates taking an action, evaluates its utility, and chooses actions based on their utility. Rationality of choice is often defined as choice of an action that maximizes the agent's (expected) utility. Here we consider a generalization in which speakers use a *softmax* function to approximate the (classical) rational choice to a variable degree. (For more on *action as inverse planning*, see  [agentmodels.org](http://agentmodels.org/chapters/3-agents-as-programs.html).)
+One of Grice's core insights was that linguistic utterances are intentional actions. 
+Thus, we model the speaker as a rational (Bayesian) actor. 
+They choose an action (e.g., an utterance) according to its utility. 
+Rationality is often defined as choosing an action that maximizes the agent's (expected) utility. 
+Here, we consider a generalization in which speakers use a *softmax* function to approximate the (classical) rational choice.
+(For more on the properties of the softmax funciton, see [this nice tutorial](https://alpslab.stanford.edu/papers/FrankeDegen_submitted.pdf).)
 
 #### Bayesian decision-making
 
-In the code box below, you'll see a generic *approximately rational* agent model. Note that in this model, `agent` uses `factor` (other related functions are `condition` and `observe`, as documented [here](http://webppl.readthedocs.io/en/dev/inference/conditioning.html); for general information on conditioning see [probmods.org](http://probmods.org/chapters/03-conditioning.html)). In rough terms, what happens is this: Each `factor` statement interacts with a call to `Infer` by incrementing a so-called log-score, the logarithm of the probability of the argument to be evaluated. For example, when `Infer` considers the probabilities of the three actions in the example below (by enumeration, its default method), it first calculates a log-score for each action (e.g., by evaluating the `factor` statement and considering the fact that each action is a draw from a uniform distribution), and then computes normalized probabilities from these. In effect, the function `agent` therefore computes the distribution:
+In the code box below, you'll see a generic *approximately rational* agent model. 
+In memo, we use `factor` statements to increment log-probabilities, which effectively implements softmax decision-making. Each `factor` statement adds to the log-score of the current execution path, and memo normalizes these to compute probabilities. In effect, the function `agent` computes the distribution:
 
 $$P(a_i) = \frac{\exp(\alpha \cdot \text{Util}(a_i))}{\sum_{j} \exp(\alpha \cdot \text{Util}(a_j))}$$
 
-~~~~
-// define possible actions
-var actions = ['a1', 'a2', 'a3'];
+```python
+# Define possible actions
+class Action(IntEnum):
+    A1 = 0
+    A2 = 1
+    A3 = 2
 
-// define some utilities for the actions
-var utility = function(action){
-  var table = {
-    a1: -1,
-    a2: 6,
-    a3: 8
-  };
-  return table[action];
-};
+# Define utilities for the actions
+@jax.jit
+def utility(action):
+    return np.array([0, 1, 2])[action]
 
-// define actor optimality
-var alpha = 1
+# Define a rational agent who chooses actions according 
+# to their expected utility
+@memo
+def agent[_a: Action](alpha):
+    speaker: chooses(a in Action, wpp=exp(alpha * utility(a)))    
+    return Pr[speaker.a == _a]
 
-// define a rational agent who chooses actions
-// according to their expected utility
-var agent = Infer({ model: function(){
-    var action = uniformDraw(actions);
-    factor(alpha * utility(action));
-    return action;
-}});
-
-print("the probability that an agent will take various actions:")
-viz(agent);
-
-~~~~
+# Test the agent
+print("Probability that an agent will take various actions:")
+agent(1, print_table=True)
+```
+{: data-executable="true" data-thebe-executable="true"}
 
 > **Exercises:**
-> 1. Check to make sure `utility()` returns the correct value for `a3`.
-> 2. Explore what happens when you change the actor's optimality parameter.
-> 3. Explore what happens when you change the utilities.
+> 1. Explore what happens when you change the actor's optimality parameter `alpha`. What does `alpha = 0` represent? What happens as `alpha` approaches infinity?
+> 2. Explore what happens when you change the utilities in the `utility()` function to [4,5,6]? (Hint: think about what matters for the softmax -- absolute values or relative differences?). What if all utilities are equal? 
+> 3. Add a fourth action `A4` with utility 10. How does the probability distribution change? 
 
 #### A rational speech actor
 
 In language understanding, the utility of an utterance is how well it communicates the state of the world $$s$$ to a listener. So, the speaker $$S_{1}$$ chooses utterances $$u$$ to communicate the state $$s$$ to the hypothesized literal listener $$L_{0}$$. Another way to think about this: $$S_{1}$$ wants to minimize the effort $$L_{0}$$ would need to arrive at $$s$$ from $$u$$, all while being efficient at communicating. $$S_{1}$$ thus seeks to minimize the surprisal of $$s$$ given $$u$$ for the literal listener $$L_{0}$$, while bearing in mind the utterance cost, $$C(u)$$. (This trade-off between efficacy and efficiency is not trivial: speakers could always use minimal ambiguity, but unambiguous utterances tend toward the unwieldy, and, very often, unnecessary. We will see this tension play out later in the book.)
 
-Speakers act in accordance with the speaker’s utility function $$U_{S_{1}}$$: utterances are more useful at communicating about some state as surprisal and utterance cost decrease. (See the [Appendix Chapter 2](app-02-utilities.html) for more on speaker utilities.)
+Speakers act in accordance with the speaker's utility function $$U_{S_{1}}$$: utterances are more useful at communicating about some state as surprisal and utterance cost decrease. (See the [Appendix Chapter 2](app-02-utilities.html) for more on speaker utilities.)
 
 
 $$U_{S_{1}}(u; s) = \log L_{0}(s\mid u) - C(u)$$
 
-(In WebPPL, $$\log L_{0}(s\mid u)$$ can be accessed via `literalListener(u).score(s)`.)
+(In memo, we can access $$\log L_{0}(s\mid u)$$ through the literal listener's output probabilities.)
 
 > **Exercise:** 
 > Return to the first code box and find $$\log L_{0}(s\mid u)$$ for the utterance "blue" and each of the three possible reference objects.
 
-With this utility function in mind, $$S_{1}$$ computes the probability of an utterance $$u$$ given some state $$s$$ in proportion to the speaker’s utility function $$U_{S_{1}}$$. The term $$\alpha > 0$$ controls the speaker’s optimality, that is, the speaker’s rationality in choosing utterances. We define:
+With this utility function in mind, $$S_{1}$$ computes the probability of an utterance $$u$$ given some state $$s$$ in proportion to the speaker's utility function $$U_{S_{1}}$$. The term $$\alpha > 0$$ controls the speaker's optimality, that is, the speaker's rationality in choosing utterances. We define:
 
 $$P_{S_{1}}(u\mid s) \propto \exp(\alpha U_{S_{1}}(u; s))\,,$$
 
@@ -167,18 +185,24 @@ $$P_{S_1}(u \mid s) \propto \exp(\alpha (\log L_{0}(s\mid u) - C(u)))\,.$$
 
 The following code implements this model of the speaker:
 
-~~~~
-// pragmatic speaker
-var speaker = function(obj){
-  Infer({model: function(){
-    var utterance = utterancePrior();
-    factor(alpha * (literalListener(utterance).score(obj) - cost(utterance)))
-    return utterance
-  }})
-}
-~~~~
+```python
+@memo
+def S1[_u: Utterance, _o: Object](alpha):
+  speaker: knows(_o)
+  speaker: chooses(u in Utterance, wpp=exp(alpha * log(L0[u, _o]())))
+  return Pr[speaker.u == _u]
 
-> **Exercise:** Check the speaker's behavior for a blue square. (Hint: you'll need to add a few pieces to the model, for example the `literalListener()` and all its dependencies. You'll also need to define the `utterancePrior()` --- try using a `uniformDraw()` over the possible `utterances` --- and the `cost()` function --- try modeling it after the `utility()` function from the previous code box. Finally, you'll need to define the speaker optimality `alpha` --- try setting `alpha` to 1.)
+def test_pragmatic_speaker(alpha, obj):
+    print(f"Literal listener interpretation of '{obj.name}':")
+    outcomes = S1(alpha)
+    for utterance in Utterance:
+        print(f"P('{utterance.name}' | {obj.name}) = {outcomes[utterance][obj]}")
+
+test_pragmatic_speaker(1, Object.GREEN_SQUARE)
+```
+{: data-executable="true" data-thebe-executable="true"}
+
+> **Exercise:** Check the speaker's behavior for different objects. What happens when you test with `Object.GREEN_SQUARE` or `Object.BLUE_CIRCLE`? How does changing the `alpha` parameter affect the speaker's behavior?
 
 We now have a model of the utterance generation process. With this in hand, we can imagine a listener who thinks about this kind of speaker.
 
@@ -190,129 +214,60 @@ The pragmatic listener $$L_{1}$$ computes the probability of a state $$s$$ given
 
 $$P_{L_{1}}(s\mid u) \propto P_{S_{1}}(u\mid s) \cdot P(s)$$
 
-~~~~
-// pragmatic listener
-var pragmaticListener = function(utterance){
-  Infer({model: function(){
-    var obj = objectPrior();
-    observe(speaker(obj), utterance)
-    return obj
-  }})
-}
-~~~~
+```python
+@memo
+def L1[_u: Utterance, _o: Object](alpha):
+  listener: knows(_u)
+  listener: chooses(o in Object, wpp = S1[_u, o](alpha))
+  return Pr[listener.o == _o]
 
+def test_pragmatic_listener(utterance, alpha=1.0):
+    print(f"Pragmatic listener interpretation of '{utterance.name}' (alpha={alpha}):")
+    outcomes = L1(alpha)
+    for obj in Object:
+        print(f"P({obj.name} | '{utterance.name}') = {outcomes[utterance][obj]:.3f}")
 
+test_pragmatic_listener(Utterance.BLUE)        
+```
 ### Putting it all together
 
-Let's explore what happens when we put all of the previous agent models together. In the following code, we assume that all utterances are equally costly (i.e., $$C(u) = C(u')$$ for all
+Let's explore what happens when we put all of the previous agent models together. 
+In the following code, we assume that all utterances are equally costly (i.e., $$C(u) = C(u')$$ for all
 $$u, u'$$) (see [Appendix Chapter 3](app-03-costs.html) for more on message costs and how to implement them).
 
-~~~~
+```python
+@memo
+def L[_u: Utterance, _o: Object](alpha, k):
+    listener: thinks[
+        speaker: given(o in Object, wpp=1),
+        speaker: chooses(u in Utterance, wpp=
+            meaning(u, o) 
+            if k == 0 
+            else exp(alpha * log(L[u, o](alpha, k - 1))))
+    ]
+    listener: observes [speaker.u] is _u
+    listener: chooses(o in Object, wpp=Pr[speaker.o == o])
+    return Pr[listener.o == _o]
 
-// print function 'condProb2Table' for conditional probability tables
-///fold:
-var condProb2Table = function(condProbFct, row_names, col_names, precision){
-  var matrix = map(function(row) {
-    map(function(col) {
-      _.round(Math.exp(condProbFct(row).score(col)),precision)}, 
-        col_names)}, 
-                   row_names)
-  var max_length_col = _.max(map(function(c) {c.length}, col_names))
-  var max_length_row = _.max(map(function(r) {r.length}, row_names))
-  var header = _.repeat(" ", max_length_row + 2)+ col_names.join("  ") + "\n"
-  var row = mapIndexed(function(i,r) { _.padEnd(r, max_length_row, " ") + "  " + 
-                       mapIndexed(function(j,c) {
-                          _.padEnd(matrix[i][j], c.length+2," ")}, 
-                                  col_names).join("") + "\n" }, 
-                           row_names).join("")
-  return header + row
-}
+def test_pragmatic_listener(utterance, alpha=1.0):
+    print(f"L0 listener interpretation of '{utterance.name}' (alpha={alpha}):")
+    outcomes = L(alpha, 0)
+    for obj in Object:
+        print(f"P({obj.name} | '{utterance.name}') = {outcomes[utterance][obj]:.3f}")
+	
+    print(f"\nL1 listener interpretation of '{utterance.name}' (alpha={alpha}):")
+    
+    outcomes = L(alpha, 1)
+    for obj in Object:
+        print(f"P({obj.name} | '{utterance.name}') = {outcomes[utterance][obj]:.3f}")
 
-///
+test_pragmatic_listener(Utterance.BLUE) 
+```
 
-
-// Frank and Goodman (2012) RSA model
-
-// set of states (here: objects of reference)
-// we represent objects as JavaScript objects to demarcate them from utterances
-// internally we treat objects as strings nonetheless
-var objects = [{color: "blue", shape: "square", string: "blue square"},
-               {color: "blue", shape: "circle", string: "blue circle"},
-               {color: "green", shape: "square", string: "green square"}]
-
-// prior over world states
-var objectPrior = function() {
-  var obj = uniformDraw(objects)
-  return obj.string 
-}
-
-// set of utterances
-var utterances = ["blue", "green", "square", "circle"]
-
-// utterance cost function
-var cost = function(utterance) {
-  return 0;
-};
-
-// meaning function to interpret the utterances
-var meaning = function(utterance, obj){
-  _.includes(obj, utterance)
-}
-
-// literal listener
-var literalListener = function(utterance){
-  Infer({model: function(){
-    var obj = objectPrior();
-    condition(meaning(utterance, obj))
-    return obj
-  }})
-}
-
-// set speaker optimality
-var alpha = 1
-
-// pragmatic speaker
-var speaker = function(obj){
-  Infer({model: function(){
-    var utterance = uniformDraw(utterances)
-    factor(alpha * (literalListener(utterance).score(obj) - cost(utterance)))
-    return utterance
-  }})
-}
-
-// pragmatic listener
-var pragmaticListener = function(utterance){
-  Infer({model: function(){
-    var obj = objectPrior()
-    observe(speaker(obj),utterance)
-    return obj
-  }})
-}
-
-viz.table(pragmaticListener("blue"))
-
-// unfold the following lines to see complete probability tables
-///fold: 
-// var object_strings = map(function(obj) {return obj.string}, objects)
-// display("literal listener")
-// display(condProb2Table(literalListener, utterances, object_strings, 4))
-// display("")
-// display("speaker")
-// display(condProb2Table(speaker, object_strings, utterances, 2))
-// display("")
-// display("pragmatic listener")
-// display(condProb2Table(pragmaticListener, utterances, object_strings, 2))
-///
-
-
-~~~~
 
 > **Exercises:**
-> 1. Explore what happens if you make the speaker *more* optimal.
-> 2. Add another object to the scenario.
-> 3. Add a new multi-word utterance.
-> 4. Check the behavior of the other possible utterances.
-> 5. Is there any way to get "blue" to refer to something green? Why or why not?
-
+> 1. Explore what happens if you increase the `alpha` softmax temperature parameter.
+> 2. Try adding a new multi-word utterance (e.g., "blue square"). What is its meaning? 
+> 3. Is there any way to get "blue" to refer to something green? Why or why not?
 
 In the [next chapter](02-pragmatics.html), we'll see how RSA models have been developed to model more complex aspects of pragmatic reasoning and language understanding.
