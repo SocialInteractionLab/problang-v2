@@ -236,38 +236,48 @@ We can combine all these pieces into a single listener function that takes the l
 
 ```python
 @memo
+@memo
 def L[_u: Utterance, _o: Object](alpha, k):
+  
+    # we start by setting up the listener's mental model of the speaker
     listener: thinks[
+      
+        # the speaker is assumed to have some object in mind 
         speaker: given(o in Object, wpp=1),
+
+        # and choose an utterance depending on the recursion level
         speaker: chooses(u in Utterance, wpp=
             meaning(u, o) 
             if k == 0 
             else exp(alpha * log(L[u, o](alpha, k - 1))))
     ]
+    # now the listener actually hears the speaker produce an utterance
     listener: observes [speaker.u] is _u
+    
+    # and updates their beliefs about the object o accordingly
     listener: chooses(o in Object, wpp=Pr[speaker.o == o])
+    
+    # finally, we return a marginal distribution over the objects
     return Pr[listener.o == _o]
 
-def test_pragmatic_listener(utterance, alpha=1.0):
-    print(f"L0 listener interpretation of '{utterance.name}' (alpha={alpha}):")
-    outcomes = L(alpha, 0)
-    for obj in Object:
-        print(f"P({obj.name} | '{utterance.name}') = {outcomes[utterance][obj]:.3f}")
-	
-    print(f"\nL1 listener interpretation of '{utterance.name}' (alpha={alpha}):")
+def test_pragmatic_listener(utterance, alpha=1.0, level = 1):
+    print(f"Listener interpretation of '{utterance.name}' (alpha={alpha}, level = {level}):")
     
-    outcomes = L(alpha, 1)
+    outcomes = L(alpha, level)
     for obj in Object:
         print(f"P({obj.name} | '{utterance.name}') = {outcomes[utterance][obj]:.3f}")
 
-test_pragmatic_listener(Utterance.BLUE) 
+test_pragmatic_listener(Utterance.BLUE, level = 0) 
+test_pragmatic_listener(Utterance.BLUE, level = 1) 
 ```
 {: data-executable="true" data-thebe-executable="true"}
 
 
 > **Exercises:**
-> 1. Explore what happens if you increase the `alpha` softmax temperature parameter.
-> 2. Try adding a new multi-word utterance (e.g., "blue square"). What is its meaning? 
-> 3. Is there any way to get "blue" to refer to something green? Why or why not?
+> 1. Explore what happens if you increase the `alpha` softmax temperature parameter. What if you increase the recursion level? Does the model converge? 
+> 2. What happens when you set alpha=0 in the unified model? What about very large values of alpha? How does this parameter interact with the recursion level?
+> 3. Try adding a new multi-word utterance (e.g., "blue square"). What should its meaning be? 
+> 4. Add a simple cost function where longer utterances (like "blue square") are more costly than shorter ones (like "blue"). How does this affect the speaker's choices and the listener's interpretations across recursion levels?
+
 
 In the [next chapter](02-pragmatics.html), we'll see how RSA models have been developed to model more complex aspects of pragmatic reasoning and language understanding.
