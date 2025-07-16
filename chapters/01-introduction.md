@@ -6,19 +6,30 @@ description: "An introduction to language understanding as Bayesian inference"
 
 ### Chapter 1: Language understanding as Bayesian inference
 
-Much work in formal, compositional semantics follows the tradition of positing systematic but inflexible theories of meaning. In practice, the meaning we derive from language depends innumerably contextual factors, both linguistic and situational. 
-To formally explain these nuanced aspects of meaning and better understand the compositional mechanism that delivers them, recent work in formal pragmatics recognizes semantics not as one of the final steps in meaning calculation, but rather as one of the first. 
-Within the Bayesian Rational Speech Act framework refp:frankgoodman2012, speakers and listeners reason about each other's reasoning about the literal interpretation of utterances. 
-The resulting interpretation necessarily depends on the literal interpretation of an utterance, but is not wholly determined by it. 
-This baisc move --- *reasoning* about likely interpretations --- provides ready explanations for complex phenomena ranging from metaphor refp:kaoetal2014metaphor and hyperbole refp:kaoetal2014 to the specification of thresholds in degree semantics refp:lassitergoodman2013.
+A: "Can you pass the salt?"
+B: [passes the salt]
 
-The probabilistic pragmatics approach leverages the tools of structured probabilistic models formalized in a stochastic 𝞴-calculus to develop and refine a general theory of communication. The framework synthesizes the knowledge and approaches from diverse areas --- formal semantics, Bayesian models of inference, formal theories of measurement, philosophy of language, etc. --- into an articulated theory of language in practice. These new tools yield broader empirical coverage and richer explanations for linguistic phenomena through the recognition of language as a means of communication, not merely a vacuum-sealed formal system. By subjecting the heretofore off-limits land of pragmatics to articulated formal models, the rapidly growing body of research both informs pragmatic phenomena and enriches theories of semantics. In what follows, we consider the first foray into this framework.
+A's utterance functions here as an *indirect request*, not a literal information-seeking question about B's physical ability to pass the salt. 
+But how did B know that? 
+Following refp:grice1969utterer, we might begin with the distinction between the **sentence meaning** (the truth conditions attached to these words composed in this sequence) and the **speaker meaning** (what A intended to communicate by uttering that sentence in a particular context). 
+Formal semantics has developed rigorous tools for understanding the former.
+But the latter has often been consigned to the "wastebasket" refp:bar1971out, depending on innumerable contextual factors too hopelessly complex to sort out.
+
+Recently, the field of formal pragmatics has begun to systematize how we go from literal meanings of words and their compositional combination — the domain of semantics — to what speakers actually communicate in context. The key insight is that pragmatic inference isn't random or unprincipled. When B interprets "Can you pass the salt?" as a request, they're following a systematic reasoning process: they recognize that A probably already knows B is physically capable of passing salt, so the literal question interpretation would be pointless. Instead, B reasons about what A might be trying to achieve by producing this utterance.
+
+The **Rational Speech Act** (RSA) framework refp:frankgoodman2012 captures this reasoning using tools from probability and decision theory. 
+It treats communication as a kind of recursive social reasoning: speakers choose utterances by thinking about how listeners will interpret them, while listeners interpret utterances by thinking about why speakers chose them.
+The resulting interpretation necessarily depends on the literal interpretation of an utterance, but is not wholly determined by it, offering an explanation for complex phenomena ranging from metaphor refp:kaoetal2014metaphor and hyperbole refp:kaoetal2014 to vagueness in degree semantics refp:lassitergoodman2013.
+
+In this chapter, we'll build up a simple RSA model step by step, starting with a basic scenario where speakers need to identify objects for listeners. While this "reference game" might seem far removed from the subtle pragmatics of indirect requests or conversational implicature, it contains all the essential ingredients of pragmatic reasoning. Once we understand how the framework operates in this simple case, we'll be prepared to extend it to increasingly complex phenomena in the chapters that follow.
 
 ### Introducing the Rational Speech Act framework
 
 The Rational Speech Act (RSA) framework views communication as recursive reasoning between a speaker and a listener. The listener interprets the speaker's utterance by reasoning about a cooperative speaker trying to inform a naive listener about some state of affairs. Using Bayesian inference, the listener reasons about what the state of the world is likely to be given that a speaker produced some utterance, knowing that the speaker is reasoning about how a listener is most likely to interpret that utterance. Thus, we have (at least) three levels of inference. At the top, the sophisticated, **pragmatic listener**, $$L_{1}$$, reasons about the **pragmatic speaker**, $$S_{1}$$, and infers the state of the world given that the speaker chose to produce the utterance $$u$$. The speaker chooses $$u$$ by maximizing the probability that a naive, **literal listener**, $$L_{0}$$, would correctly infer the state of the world given the literal meaning of $$u$$.
 
-To make this architecture more intelligible, let's consider a concrete example and a vanilla version of an RSA model. In its initial formulation, reft:frankgoodman2012 use the basic RSA framework to model referent choice in efficient communication. Let's suppose that there are only three objects that the speaker and listener want to talk about, as in Fig. 1.
+To make this abstract architecture more intelligible, let's consider a concrete example for a "vanilla" RSA model. 
+In its initial formulation, reft:frankgoodman2012 modeled referent choice in efficient communication. 
+Let's suppose that there are only three objects that the speaker and listener want to talk about, as in Fig. 1.
 
 {% include figure.html 
 file="../images/rsa_scene.png" 
@@ -47,15 +58,15 @@ width="400px"
 number = "2"
 %}
 
-### Literal listeners
+### The literal listener
 
 At the base of this reasoning, the naive, literal listener $$L_{0}$$ interprets an utterance according to its meaning. That is, $$L_{0}$$ computes the probability of $$o$$ given $$u$$ according to the semantics of $$u$$ and the prior probability of $$o$$. A standard view of the semantic content of an utterance suffices: a mapping from states of the world to truth values. For example, the utterance $$\text{"blue"}$$ is true of states $$\text{blue-square}$$ and $$\text{blue-circle}$$ and false of state $$\text{green-square}$$. We write $$[\![u]\!] \colon O \mapsto \{0,1\}$$ for the denotation function of this standard, Boolean semantics of utterances in terms of states. The literal listener is then defined via a function $$P_{L_{0}} \colon U \mapsto \Delta^S$$ that maps each utterance to a probability distribution over world states, like so:
 
 $$P_{L_{0}}(o\mid u) \propto [\![u]\!](o) \cdot P(o)$$
 
-Here, $$P(o)$$ is an a priori belief regarding which state or object the speaker is likely to refer to in general. These prior beliefs can capture general world knowledge, perceptual salience, or other things. For the time being, we assume a flat prior belief according to which each object is equally likely. (As we move away from flat priors, we'll want to revise these assumptions so that $$L_0$$ (but not $$L_1$$!) uses a uniform prior over states. In fact, this is what reft:frankgoodman2012 assumed in their model. See [Appendix Chapter 4](app-04-BDA.html) for discussion.)
+Here, $$P(o)$$ is an a priori belief regarding which state or object the speaker is likely to refer to in general. These prior beliefs can capture general world knowledge, perceptual salience, or other things. For the time being, we assume a flat prior belief according to which each object is equally likely. (As we move away from flat priors, we'll want to revise these assumptions so that $$L_0$$ (but not $$L_1$$!) uses a uniform prior over states. In fact, this is what reft:frankgoodman2012 assumed in their model. )
 
-The literal listener rule can be written as follows:
+This literal listener equation can be implemented as follows in `memo` (see [Appendix Chapter 1](app-01-probability.html) for a basic tutorial on `memo` syntax):
 
 ```python
 from memo import memo
@@ -115,7 +126,7 @@ Fantastic! We now have a way of specifying how a listener will interpret the tru
 
 - The return statement `Pr[listener.o == _o]` says that we want the probability that the listener's chosen object o equals the specific object _o that we're querying about. The `Pr[...]` syntax asks "what is the marginal probability that this condition is true?"
 
-### Pragmatic speakers
+### The pragmatic speaker
 
 One of Grice's core insights was that linguistic utterances are intentional actions. 
 Thus, we model the speaker as a rational (Bayesian) actor. 
@@ -123,8 +134,6 @@ They choose an action (e.g., an utterance) according to its utility.
 Rationality is often defined as choosing an action that maximizes the agent's (expected) utility. 
 Here, we consider a generalization in which speakers use a *softmax* function to approximate the (classical) rational choice.
 (For more on the properties of the softmax funciton, see [this nice tutorial](https://alpslab.stanford.edu/papers/FrankeDegen_submitted.pdf).)
-
-#### Bayesian decision-making
 
 In the code box below, you'll see a generic *approximately rational* agent model. 
 In memo, we use `factor` statements to increment log-probabilities, which effectively implements softmax decision-making. Each `factor` statement adds to the log-score of the current execution path, and memo normalizes these to compute probabilities. In effect, the function `agent` computes the distribution:
@@ -161,12 +170,9 @@ agent(1, print_table=True)
 > 2. Explore what happens when you change the utilities in the `utility()` function to [4,5,6]? (Hint: think about what matters for the softmax -- absolute values or relative differences?). What if all utilities are equal? 
 > 3. Add a fourth action `A4` with utility 10. How does the probability distribution change? 
 
-#### A rational speech actor
-
 In language understanding, the utility of an utterance is how well it communicates the state of the world $$s$$ to a listener. So, the speaker $$S_{1}$$ chooses utterances $$u$$ to communicate the state $$s$$ to the hypothesized literal listener $$L_{0}$$. Another way to think about this: $$S_{1}$$ wants to minimize the effort $$L_{0}$$ would need to arrive at $$s$$ from $$u$$, all while being efficient at communicating. $$S_{1}$$ thus seeks to minimize the surprisal of $$s$$ given $$u$$ for the literal listener $$L_{0}$$, while bearing in mind the utterance cost, $$C(u)$$. (This trade-off between efficacy and efficiency is not trivial: speakers could always use minimal ambiguity, but unambiguous utterances tend toward the unwieldy, and, very often, unnecessary. We will see this tension play out later in the book.)
 
 Speakers act in accordance with the speaker's utility function $$U_{S_{1}}$$: utterances are more useful at communicating about some state as surprisal and utterance cost decrease. (See the [Appendix Chapter 2](app-02-utilities.html) for more on speaker utilities.)
-
 
 $$U_{S_{1}}(u; s) = \log L_{0}(s\mid u) - C(u)$$
 
@@ -207,7 +213,7 @@ test_pragmatic_speaker(1, Object.GREEN_SQUARE)
 
 We now have a model of the utterance generation process. With this in hand, we can imagine a listener who thinks about this kind of speaker.
 
-### Pragmatic listeners
+### The pragmatic listener
 
 The pragmatic listener $$L_{1}$$ computes the probability of a state $$s$$ given some utterance $$u$$. By reasoning about the speaker $$S_{1}$$, this probability is proportional to the probability that $$S_{1}$$ would choose to utter $$u$$ to communicate about the state $$s$$, together with the prior probability of $$s$$ itself. In other words, to interpret an utterance, the pragmatic listener considers the process that *generated* the utterance in the first place. (Note that the listener model uses `observe`, which functions like `factor` with $$\alpha$$ set to $$1$$.)
 
@@ -235,52 +241,39 @@ test_pragmatic_listener(Utterance.BLUE)
 ### Putting it all together
 
 So far, we've implemented the RSA framework by defining separate functions for each level of reasoning: `L0` for literal listeners, `S1` for pragmatic speakers, and `L1` for pragmatic listeners. While this approach works and gives us the correct results, it doesn't leverage the full power of memo, which makes the recursive reasoning structure more transparent. 
-We can combine all these pieces into a single listener function that takes the level of recursion as an argument. This unified approach allows us to easily explore different depths of reasoning by simply changing a parameter. 
+We can combine all these pieces into a single function.
 
 ```python
 @memo
-@memo
-def L[_u: Utterance, _o: Object](alpha, k):
-  
-    # we start by setting up the listener's mental model of the speaker
+def L[u: Utterance, o: Object](alpha):
     listener: thinks[
-      
-        # the speaker is assumed to have some object in mind 
-        speaker: given(o in Object, wpp=1),
-
-        # and choose an utterance depending on the recursion level
-        speaker: chooses(u in Utterance, wpp=
-            meaning(u, o) 
-            if k == 0 
-            else exp(alpha * log(L[u, o](alpha, k - 1))))
+        speaker: chooses(o in Object, wpp=1),
+        speaker: chooses(u in Utterance, wpp=imagine[
+            listener: knows(u),
+            listener: chooses(o in Object, wpp=meaning(u, o)),
+            exp(alpha * log(Pr[listener.o == o]))
+        ])
     ]
-    # now the listener actually hears the speaker produce an utterance
-    listener: observes [speaker.u] is _u
-    
-    # and updates their beliefs about the object o accordingly
+    listener: observes [speaker.u] is u
     listener: chooses(o in Object, wpp=Pr[speaker.o == o])
+    return Pr[listener.o == o]
+  
+def test_pragmatic_listener(utterance, alpha=1.0):
+    print(f"Listener interpretation of '{utterance.name}' (alpha={alpha}:")
     
-    # finally, we return a marginal distribution over the objects
-    return Pr[listener.o == _o]
-
-def test_pragmatic_listener(utterance, alpha=1.0, level = 1):
-    print(f"Listener interpretation of '{utterance.name}' (alpha={alpha}, level = {level}):")
-    
-    outcomes = L(alpha, level)
+    outcomes = L(alpha)
     for obj in Object:
         print(f"P({obj.name} | '{utterance.name}') = {outcomes[utterance][obj]:.3f}")
 
-test_pragmatic_listener(Utterance.BLUE, level = 0) 
-test_pragmatic_listener(Utterance.BLUE, level = 1) 
+test_pragmatic_listener(Utterance.BLUE) 
 ```
 {: data-executable="true" data-thebe-executable="true"}
 
-
 > **Exercises:**
-> 1. Explore what happens if you increase the `alpha` softmax temperature parameter. What if you increase the recursion level? Does the model converge? 
-> 2. What happens when you set alpha=0 in the unified model? What about very large values of alpha? How does this parameter interact with the recursion level?
+> 1. Explore what happens if you increase the `alpha` softmax temperature parameter. What happens when you set alpha=0? 
+> 2. `memo` provides a helpful INSPECT() function to print out what an agent knows at different points in the code. Try inserting the line `listener: INSPECT()` before and after the `observes` statement. What did the `observes` statement change about the listener's state?
 > 3. Try adding a new multi-word utterance (e.g., "blue square"). What should its meaning be? 
-> 4. Add a simple cost function where longer utterances (like "blue square") are more costly than shorter ones (like "blue"). How does this affect the speaker's choices and the listener's interpretations across recursion levels?
+> 4. Add a simple cost function where longer utterances (like "blue square") are more costly than shorter ones (like "blue"). How does this affect the speaker's choices?
+> 5. Can you implement higher levels of recursion? When does the model converge? How does the alpha parameter interact with the recursion level?
 
-
-In the [next chapter](02-pragmatics.html), we'll see how RSA models have been developed to model more complex aspects of pragmatic reasoning and language understanding.
+In the [next chapter](02-pragmatics.html), we'll move beyond simple reference games to see how RSA models have been developed to model more complex aspects of pragmatic reasoning and language understanding.
