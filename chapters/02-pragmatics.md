@@ -6,221 +6,96 @@ description: "Enriching the literal interpretations"
 
 ### Chapter 2: Enriching the literal interpretations
 
-<!--   - Building the literal interpretations
-  - Compositional mechanisms and semantic types
-    - Functional Application; Predicate Modification
-  - The compositional semantics example from DIPPL -->
-
 #### Application 1: Scalar implicature
 
 Scalar implicature stands as the poster child of pragmatic inference. Utterances are strengthened---via implicature---from a relatively weak literal interpretation to a pragmatic interpretation that goes beyond the literal semantics: "Some of the apples are red," an utterance compatible with all of the apples being red, gets strengthened to "Some but not all of the apples are red."  The mechanisms underlying this process have been discussed at length. reft:goodmanstuhlmuller2013 apply an RSA treatment to the phenomenon and formally articulate the model by which scalar implicatures get calculated.
 
-Assume a world with three apples; zero, one, two, or three of those apples may be red:
+Assume a world with three apples; zero, one, two, or three of those apples may be red.
+Further assume that speakers may describe the current state of the world in one of three ways: "none", "some," or "all" of the apples are red.
+Putting priors and literal semantics together, we can implement the behavior of a literal listener as in the previous chapter. The literal listener simply interprets messages by assigning probability 0 to each state where the observed message is false, and a uniform probability to each true state.
 
-~~~~
-// possible states of the world
-var states = [0, 1, 2, 3]
-var statePrior = function() {
-  return uniformDraw(states)
-}
-statePrior() // sample a state
-~~~~
+
+```python
+from memo import memo
+import jax
+import jax.numpy as np
+from enum import IntEnum
+
+# possible states of the world
+State = np.arange(4)
+
+# possible utterances
+class Utterance(IntEnum):
+  ALL = 0
+  SOME = 1
+  NONE = 2
+
+@jax.jit
+def meaning(utterance, state):
+    return np.array([
+        state == 3,  # ALL: true if 3/3 apples are red
+        state >= 1,  # SOME: true if at least one is red
+        state == 0,  # NONE: true if 0/3 apples are red
+    ])[utterance]
+
+@memo
+def L0[_u: Utterance, _s: State]():
+    listener: knows(_u)
+    listener: chooses(s in State, wpp=meaning(_u, s))
+    return Pr[listener.s == _s]
+
+L0()
+```
+{: data-executable="true" data-thebe-executable="true"}
 
 > **Exercises:**
-> 1. Try visualizing `statePrior()` by drawing many samples and plotting the output (hint: you'll need to use the `repeat()` function, which has a strange syntax that is documented [here](http://webppl.readthedocs.io/en/master/functions/arrays.html#repeat)).
-> 2. Try visualizing `statePrior()` by wrapping it in `Infer` (à la our $$L_0$$ model).
-
-Next, assume that speakers may describe the current state of the world in one of three ways:
-
-~~~~
-// possible utterances
-var utterancePrior = function() {
-  return uniformDraw(['all', 'some', 'none'])
-}
-
-// meaning function to interpret the utterances
-var literalMeanings = {
-  all: function(state) { return state === 3; },
-  some: function(state) { return state > 0; },
-  none: function(state) { return state === 0; }
-}
-
-var utt = utterancePrior() // sample an utterance
-var meaning = literalMeanings[utt] // get its meaning
-display([utt, meaning(3)]) // apply meaning to state = 3
-~~~~
-
-> **Exercise:** Interpret the output of the above code box. (Run several times.)
-
-Putting state priors and semantics together, we can implement the behavior of the literal listener. The literal listener will interpret messages by assigning probability 0 to each state where the observed message is false, and the same uniform probability to each true state.
-
-~~~~
-// code for state prior and semantics as before
-///fold:
-// possible states of the world
-var states = [0, 1, 2, 3]
-var statePrior = function() {
-  return uniformDraw(states)
-};
-
-// possible utterances
-var utterancePrior = function() {
-  return uniformDraw(['all', 'some', 'none']);
-};
-
-// meaning function to interpret the utterances
-var literalMeanings = {
-  all: function(state) { return state === 3; },
-  some: function(state) { return state > 0; },
-  none: function(state) { return state === 0; }
-};
-///
-
-// literal listener
-var literalListener = function(utt) {
-  return Infer({model: function(){
-    var state = uniformDraw(states)
-    var meaning = literalMeanings[utt]
-    condition(meaning(state))
-    return state
-  }}
-)}
-
-display("literal listener's interpretation of 'some':")
-viz(literalListener("some"))
-~~~~
+> 1. Try examining the prior over states.
+> 2. Try adding an utterance for "MOST".
 
 Next, let's have a look at the speaker's behavior. Intuitively put, in the vanilla RSA model, the speaker will never choose a false message; the speaker chooses among the true utterances by prioritizing those with the strongest meaning (see [Appendix Chapter 2](app-02-utilities.html)). You can verify this behavior with the following code.
 
-~~~~
-// code for state prior, semantics and literal listener as before
-///fold:
-// possible states of the world
-var states = [0, 1, 2, 3]
-var statePrior = function() {
-  return uniformDraw(states)
-}
+```python
+@memo
+def S1[_u: Utterance, _s: State](alpha):
+    speaker: knows(_s)
+    speaker: chooses(u in Utterance, wpp=imagine[
+      listener: knows(u),
+      listener: chooses(s in State, wpp=meaning(u, s)),
+      exp(alpha * log(Pr[listener.s == _s]))
+    ])
+    return Pr[speaker.u == _u]
 
-// possible utterances
-var utterancePrior = function() {
-  return uniformDraw(['all', 'some', 'none'])
-}
+S1(1)
+```
+{: data-executable="true" data-thebe-executable="true"}
 
-// cost function for utterances
-var cost = function(utterance){
-  utterance == "all" ? 1 :
-  utterance == "some" ? 1 :
-  utterance == "none" ? 1 :
-  0
-}
+With this knowledge about the communication scenario---crucially, the availability of the "all" alternative utterance---a pragmatic listener is able to infer from the "some" utterance that a state in which the speaker would not have used the "all" utterance is more likely than one in which she would. The following code---a complete vanilla RSA model for scalar implicatures---implements the pragmatic listener. 
 
-// meaning function to interpret the utterances
-var literalMeanings = {
-  all: function(state) { return state === 3; },
-  some: function(state) { return state > 0; },
-  none: function(state) { return state === 0; }
-}
+```python
+@memo
+def L1[_u: Utterance, _s: State](alpha):
+    listener: thinks[
+        speaker: chooses(s in State, wpp=1),
+        speaker: chooses(u in Utterance, wpp=imagine[
+            listener: knows(u),
+            listener: chooses(s in State, wpp=meaning(u, s)),
+            exp(alpha * log(Pr[listener.s == s]))
+        ])
+    ]
+    listener: observes [speaker.u] is _u
+    listener: chooses(s in State, wpp=Pr[speaker.s == s])
+    return Pr[listener.s == _s]
 
-// literal listener
-var literalListener = function(utt) {
-  return Infer({model: function(){
-    var state = uniformDraw(states)
-    var meaning = literalMeanings[utt]
-    condition(meaning(state))
-    return state
-  }}
-)}
-///
-
-// set speaker optimality
-var alpha = 1
-
-// pragmatic speaker
-var speaker = function(state) {
-  return Infer({model: function(){
-    var utt = utterancePrior()
-    factor(alpha * (literalListener(utt).score(state) - cost(utt)))
-    return utt
-  }})
-}
-
-display("speaker's production probabilities for state 3:")
-viz(speaker(3))
-
-~~~~
-
-With this knowledge about the communication scenario---crucially, the availability of the "all" alternative utterance---a pragmatic listener is able to infer from the "some" utterance that a state in which the speaker would not have used the "all" utterance is more likely than one in which she would. The following code---a complete vanilla RSA model for scalar implicatures---implements the pragmatic listener. (Technical note: Below, `cache` is used to save the results of the various Bayesian inferences being performed, which increases computational efficiency when dealing with nested inferences.)
-
-~~~~
-// possible states of the world
-var states = [0, 1, 2, 3]
-var statePrior = function() {
-  return uniformDraw(states)
-}
-
-// possible utterances
-var utterancePrior = function() {
-  return uniformDraw(['all', 'some', 'none'])
-}
-
-// cost function for utterances
-var cost = function(utterance){
-  utterance == "all" ? 1 :
-  utterance == "some" ? 1 :
-  utterance == "none" ? 1 :
-  0
-}
-
-// meaning function to interpret the utterances
-var literalMeanings = {
-  all: function(state) { return state === 3; },
-  some: function(state) { return state > 0; },
-  none: function(state) { return state === 0; }
-}
-
-// literal listener
-var literalListener = cache(function(utt) {
-  return Infer({model: function(){
-    var state = uniformDraw(states)
-    var meaning = literalMeanings[utt]
-    condition(meaning(state))
-    return state
-  }})
-})
-
-// set speaker optimality
-var alpha = 1
-
-// pragmatic speaker
-var speaker = cache(function(state) {
-  return Infer({model: function(){
-    var utt = utterancePrior()
-    factor(alpha * (literalListener(utt).score(state) - cost(utt)))
-    return utt
-  }})
-})
-
-// pragmatic listener
-var pragmaticListener = cache(function(utt) {
-  return Infer({model: function(){
-    var state = statePrior()
-    observe(speaker(state),utt)
-    return state
-  }})
-})
-
-display("pragmatic listener's interpretation of 'some':")
-viz(pragmaticListener('some'))
-
-~~~~
+L1(1)
+```    
+{: data-executable="true" data-thebe-executable="true"}
 
 > **Exercises:**
 > 1. Explore what happens if you make the speaker *less* optimal.
 > 2. Subtract one of the utterances. What changed?
 > 3. Add a new utterance. What changed?
-> 4. Check what would happen if 'some' literally meant some-but-not-all (hint: use `!=` to assert that two values are not equal).
+> 4. Check what would happen if 'some' literally meant some-but-not-all 
 > 5. Change the relative prior probabilities of the various states and see what happens to model predictions.
-
 
 #### Application 2: Scalar implicature and speaker knowledge
 
@@ -253,7 +128,6 @@ $$P_{S_{1}}(u\mid s, a) = \sum_o P_{S_{1}}(u \mid o, a) \cdot P(o
 \mid s, a)$$
 
 is obtained from marginalizing out the possible observations $$o$$.
-
 
 ~~~~
 // pragmatic listener
