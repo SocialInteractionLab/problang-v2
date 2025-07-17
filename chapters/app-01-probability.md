@@ -127,68 +127,6 @@ flip_n(print_table=True)
 ```
 {: data-executable="true" data-thebe-executable="true"}
 
-**Example 5: The 3-card problem**
-
-Now we're ready to tackle the 3-card problem using `memo`. 
-Recall our setup: Jones has three cards (red-red, red-blue, blue-blue), randomly selects one, randomly chooses a side, and shows you a blue side. 
-What's the probability that the hidden side is also blue?
-Before seeing any evidence, let's compute the probability of seeing each color. We model an agent who randomly selects a card and a side:
-
-```python
-@memo
-def color_prior[_c: Color]():
-    agent: given(card in Card, wpp=1)
-    agent: given(side in Side, wpp=1)
-    return Pr[check_color(agent.card, agent.side) == _c]
-
-print("Prior probabilities of colors:")
-color_prior(print_table=True)
-```
-{: data-executable="true" data-thebe-executable="true"}
-
-So far we haven't *inferered* anything, we've just set up a prior distribution. 
-This is sometimes called the "forward model" or the "generative model". 
-Now for the key question: given that we observed a blue side, what's the probability each card was selected? 
-This is where `memo`'s power really shines. 
-We can model this as an observer reasoning about what a friend (Jones) was thinking when they see the card:
-
-```python
-@memo
-def card_posterior[_card: Card, _color: Color]():
-    observer: knows(_card, _color)
-    observer: thinks[
-        friend: chooses(card in Card, wpp=1),
-        friend: chooses(side in Side, wpp=1),
-        friend: given(color in Color, 
-                        wpp=color==check_color(card, side))
-    ]
-    observer: observes [friend.color] is _color
-    return observer[Pr[friend.card == _card]]
-
-print("\nPosterior probabilities:")
-res = card_posterior(print_table=True, return_aux=True, return_xarray=True)
-
-# Extract and display the results more clearly
-xa = res.aux.xarray
-pr_red = xa.loc[:, 'RED']
-pr_blue = xa.loc[:, 'BLUE']
-
-print(f"\nGiven we observed RED:")
-print(f"        P(card 1 | RED) = {pr_red.loc[0].sum():.4f}")
-print(f"        P(card 2 | RED) = {pr_red.loc[1].sum():.4f}")
-print(f"        P(card 3 | RED) = {pr_red.loc[2].sum():.4f}")
-
-print(f"\nGiven we observed BLUE:")
-print(f"        P(card 1 | BLUE) = {pr_blue.loc[0].sum():.4f}")
-print(f"        P(card 2 | BLUE) = {pr_blue.loc[1].sum():.4f}")
-print(f"        P(card 3 | BLUE) = {pr_blue.loc[2].sum():.4f}")
-```
-{: data-executable="true" data-thebe-executable="true"}
-
-The `observer: thinks[...]` block models the observer's expectations about how Jones (the `friend`) makes decisions (in this case, drawing cards and sides randomly). 
-The `observer: observes [friend.color] is _color` line represents conditioning on the observation. 
-Notice how the posterior probabilities match our earlier calculations - the blue-blue card (card 3) is twice as likely as the red-blue card (card 2) when we observe blue!
-
 
 ### The 3-card problem: motivating Bayesian reasoning
 
@@ -339,3 +277,89 @@ for card in cards:
     print(f"P(card {card+1} | BLUE) = {card_posterior(card, Color.BLUE):.4f}")
 ```
 {: data-executable="true" data-thebe-executable="true"}
+
+**Example 5: The 3-card problem**
+
+Now we're ready to tackle the 3-card problem using `memo`. 
+Recall our setup: Jones has three cards (red-red, red-blue, blue-blue), randomly selects one, randomly chooses a side, and shows you a blue side. 
+What's the probability that the hidden side is also blue?
+Before seeing any evidence, let's compute the probability of seeing each color. We model an agent who randomly selects a card and a side:
+
+```python
+class Color(IntEnum):
+    RED = 0
+    BLUE = 1
+
+class Card(IntEnum):
+    RED_RED = 0
+    RED_BLUE = 1
+    BLUE_BLUE = 2
+
+class Side(IntEnum):
+    FIRST = 0
+    SECOND = 1
+
+# Define the card-side color matrix upfront
+card_colors = jnp.array([
+        [Color.RED, Color.RED],      # RED_RED card
+        [Color.RED, Color.BLUE],     # RED_BLUE card  
+        [Color.BLUE, Color.BLUE]     # BLUE_BLUE card
+    ])
+
+@jax.jit
+def check_color(card, side):
+    return card_colors[card][side]
+
+@memo
+def color_prior[_c: Color]():
+    agent: given(card in Card, wpp=1)
+    agent: given(side in Side, wpp=1)
+    return Pr[check_color(agent.card, agent.side) == _c]
+
+print("Prior probabilities of colors:")
+color_prior(print_table=True)
+```
+{: data-executable="true" data-thebe-executable="true"}
+
+So far we haven't *inferered* anything, we've just set up a prior distribution. 
+This is sometimes called the "forward model" or the "generative model". 
+Now for the key question: given that we observed a blue side, what's the probability each card was selected? 
+This is where `memo`'s power really shines. 
+We can model this as an observer reasoning about what a friend (Jones) was thinking when they see the card:
+
+```python
+@memo
+def card_posterior[_card: Card, _color: Color]():
+    observer: knows(_card, _color)
+    observer: thinks[
+        friend: chooses(card in Card, wpp=1),
+        friend: chooses(side in Side, wpp=1),
+        friend: given(color in Color, 
+                        wpp=color==check_color(card, side))
+    ]
+    observer: observes [friend.color] is _color
+    return observer[Pr[friend.card == _card]]
+
+print("\nPosterior probabilities:")
+res = card_posterior(print_table=True, return_aux=True, return_xarray=True)
+
+# Extract and display the results more clearly
+xa = res.aux.xarray
+pr_red = xa.loc[:, 'RED']
+pr_blue = xa.loc[:, 'BLUE']
+
+print(f"\nGiven we observed RED:")
+print(f"        P(card 1 | RED) = {pr_red.loc[0].sum():.4f}")
+print(f"        P(card 2 | RED) = {pr_red.loc[1].sum():.4f}")
+print(f"        P(card 3 | RED) = {pr_red.loc[2].sum():.4f}")
+
+print(f"\nGiven we observed BLUE:")
+print(f"        P(card 1 | BLUE) = {pr_blue.loc[0].sum():.4f}")
+print(f"        P(card 2 | BLUE) = {pr_blue.loc[1].sum():.4f}")
+print(f"        P(card 3 | BLUE) = {pr_blue.loc[2].sum():.4f}")
+```
+{: data-executable="true" data-thebe-executable="true"}
+
+The `observer: thinks[...]` block models the observer's expectations about how Jones (the `friend`) makes decisions (in this case, drawing cards and sides randomly). 
+The `observer: observes [friend.color] is _color` line represents conditioning on the observation. 
+Notice how the posterior probabilities match our earlier calculations - the blue-blue card (card 3) is twice as likely as the red-blue card (card 2) when we observe blue!
