@@ -127,58 +127,111 @@ where
 $$P_{S_{1}}(u\mid s, a) = \sum_o P_{S_{1}}(u \mid o, a) \cdot P(o
 \mid s, a)$$
 
-is obtained from marginalizing out the possible observations $$o$$.
+is obtained from marginalizing out the possible observations $$o$$. 
 
-~~~~
-// pragmatic listener
-var pragmaticListener = cache(function(utt,access) {
-  return Infer({model: function(){
-    var state = statePrior()
-    observe(speaker(access,state),utt)
-    return numTrue(state)
-  }})
-});
-~~~~
+We can write the L1 as follows:
+
+```python
+from memo import memo
+import jax
+import jax.numpy as jnp
+from enum import IntEnum
+from memo import domain
+
+# possible utterances
+class Utterance(IntEnum):
+  ALL = 0
+  SOME = 1
+  NONE = 2
+
+NumRed = jnp.array([0,1,2,3])
+
+# possible states of the world
+class Apple(IntEnum):
+  GREEN = 0
+  RED = 1
+  
+State = domain(
+  apple1=len(Apple),
+  apple2=len(Apple),
+  apple3=len(Apple)
+)
+
+@jax.jit
+def num_red(s):
+    return State.apple1(s) + State.apple2(s) + State.apple3(s)
+
+@jax.jit
+def meaning(utterance, state):
+    return jnp.array([
+        num_red(state) == 3,  # ALL: true if 3/3 apples are red
+        num_red(state) >= 1,  # SOME: true if at least one is red
+        num_red(state) == 0,  # NONE: true if 0/3 apples are red
+    ])[utterance]
+
+@jax.jit
+def obs_p(s, o, a): 
+  s_array = jnp.array([State.apple1(s), State.apple2(s), State.apple3(s)])
+  o_array = jnp.array([State.apple1(o), State.apple2(o), State.apple3(o)])
+  a_array = jnp.array([State.apple1(a), State.apple2(a), State.apple3(a)])
+  ps = jnp.where(a_array, jnp.equal(s_array, o_array), .5)
+  return jnp.prod(ps)
+
+@jax.jit
+def binom_p(s):
+  return base_rate**num_red(s) * (1 - base_rate)**(3 - num_red(s))
+
+@memo  
+def L0[_u: Utterance, _s: State]():
+  listener: knows(_u)
+  listener: chooses(s in State, wpp=meaning(_u, s))
+  return Pr[listener.s == _s]
+
+@memo
+def S1[_s: State, _a: State, _u: Utterance](alpha):
+  actualworld: knows(_a, _s)
+  actualworld: chooses(_o in NumRed, wpp=obs_p(_o, _s, _a))
+  
+  speaker: knows(_a)
+  speaker: thinks[
+    hypotheticalworld: knows(_a),
+    hypotheticalworld: chooses(s in State, wpp = binom_p(s)),
+    hypotheticalworld: chooses(o in NumRed, wpp = obs_p(o, s, _a))
+  ]
+  speaker: observes [hypotheticalworld.o] is actualworld._o
+
+  speaker: guesses(s in State, wpp=Pr[s == hypotheticalworld.s])  
+  speaker: chooses(u in Utterance, wpp=exp(alpha * log(L0[u, s]())))
+  return Pr[speaker.u == _u]
+
+@memo
+def L1[_n: NumRed, _a: State, _u: Utterance](alpha):
+  listener: knows(_a)
+  listener: thinks[
+    speaker: knows(_a),
+    speaker: given(s in State, wpp=binom_p(s)),
+    speaker: chooses(u in Utterance, wpp=S1[s, _a, u](alpha))
+  ]
+
+  listener: observes [speaker.u] is _u
+  listener: knows(_n)
+  return listener[Pr[num_red(speaker.s) == _n]]
+
+def test_listener(utt, access):
+  outcomes = L1(1)
+  for n in NumRed:
+    print(f"P({n} | u={utt.name}, a={State._tuple(access)}) = {outcomes[n][access][utt]:.3f}")
+
+test_listener(Utterance.SOME, 7)
+test_listener(Utterance.SOME, 6)
+```
+{: data-executable="true" data-thebe-executable="true"}
 
 We have to enrich the speaker model: first the speaker makes an observation $$o$$ of the true state $$s$$ with access $$a$$. On the basis of this observation, the speaker infers $$s$$.
 
-~~~~
-///fold:
-// tally up the state
-var numTrue = function(state) {
-  var fun = function(x) {
-    x ? 1 : 0
-  }
-  return sum(map(fun,state))
-}
-///
+```python
 
-// red apple base rate
-var baserate = 0.8
-
-// state builder
-var statePrior = function() {
-  var s1 = flip(baserate)
-  var s2 = flip(baserate)
-  var s3 = flip(baserate)
-  return [s1,s2,s3]
-}
-
-// speaker belief function
-var belief = function(actualState, access) {
-  var fun = function(access_val,state_val) {
-    return access_val ? state_val : uniformDraw(statePrior())
-  }
-  return map2(fun, access, actualState);
-}
-
-print("1000 runs of the speaker's belief function:")
-
-viz.auto(repeat(1000,function() {
-  numTrue(belief([true,true,true],[true,true,false]))
-}))
-
-~~~~
+```
 
 > **Exercise:** See what happens when you change the red apple base rate.
 
