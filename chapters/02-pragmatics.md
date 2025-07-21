@@ -175,7 +175,7 @@ def obs_p(o, s, a):
   s_array = jnp.array([State.apple1(s), State.apple2(s), State.apple3(s)])
   a_array = jnp.array([State.apple1(a), State.apple2(a), State.apple3(a)])
   N = jnp.sum(jnp.where(a_array, s_array, 0))
-  return jnp.equal(N, o) 
+  return N == o 
 
 @jax.jit
 def binom_p(s):
@@ -223,7 +223,6 @@ def test_listener(utt, access):
     print(f"P({n} | u={utt.name}, a={State._tuple(access)}) = {outcomes[n][access][utt]:.3f}")
 
 test_listener(Utterance.SOME, 7)
-test_listener(Utterance.SOME, 6)
 ```
 {: data-executable="true" data-thebe-executable="true"}
 
@@ -276,36 +275,80 @@ If the speaker communicates her belief state with a statement like "Some of the 
 $$P_{L_{1}}(s, a, o \mid u) \propto P_{S_{1}}(u\mid a, o) \cdot P(s,a,o)$$
 
 ```python
+from memo import memo, domain
+from enum import IntEnum
+
+import jax
+import jax.numpy as np
+from jax.scipy.stats.binom import pmf as binompmf
+from jax.scipy.special import factorial
+binompmf = jax.jit(binompmf)
+
+NN = 3  # total number of apples
+N = np.arange(NN + 1)
+base_rate = 0.8
+
+class U(IntEnum):
+    NONE = 0
+    SOME = 1
+    ALL = 3
+
+@jax.jit  # hypergeometric pmf
+def p_obs(s, o, a):
+    # binomial coefficient
+    def nck(n, k): return np.where((k < 0) | (k > n), 0, factorial(n) / factorial(k) / factorial(n - k))
+
+    # probability of seeing $o$ red apples out of $a$ if $s/n$ are red
+    return nck(a, o) * nck(NN - a, s - o) / nck(NN, s)
+
+@memo  # literal listener
+def L0[u: U, s: N]():
+    listener: knows(u)
+    listener: chooses(s in N, wpp=(
+        (s == {NN}) if u == {U.ALL}  else
+        (s > 0)     if u == {U.SOME} else
+        (s == 0)    if u == {U.NONE} else
+        0
+    ))
+    return Pr[listener.s == s]
+
 @memo
-def S1[_s: State, _a: State, _u: Utterance](alpha):
-    actualworld: knows(_a, _s)
-    world: chooses(_o in N, wpp=p_obs(_s, _o, _a))
+def S1[a: N, s: N, u: U](alpha):
+    world: knows(a, s)
+    world: chooses(o in N, wpp=p_obs(s, o, a))
 
-    speaker: knows(_a)
+    speaker: knows(a)
     speaker: thinks[
-        hypotheticalworld: knows(_a),
-        hypotheticalworld: chooses(s in N, wpp=binom_p(s)),
-        hypotheticalworld: chooses(o in N, wpp=p_obs(s, o, a)),
+        world: knows(a),
+        world: chooses(s in N, wpp=binompmf(s, {NN}, {base_rate})),
+        world: chooses(o in N, wpp=p_obs(s, o, a)),
     ]
-    speaker: observes [hypotheticalworld.o] is actualworld._o
+    speaker: observes [world.o] is world.o
 
-    # now instead of guessing s, speaker marginalizes over uncertainty about world state
+    # now instead of guessing s, speaker marginalizes over uncertainty in utility
     speaker: chooses(u in U, wpp=exp(alpha * E[log(1e-5 + L0[u, world.s]())]))
+    # alternatively, if you want it in terms of KL-divergence...
+    # imagine[
+    #     listener: knows(u),
+    #     listener: guesses(s in N, wpp=L0[u, s]()),
+    #     exp(alpha * -KL[world.s | listener.s])
+    # ])
     return Pr[speaker.u == u]
 
-def L1[_a: State, _u: Utterance](alpha):
+@memo
+def L1[u: U, a: N](alpha):
     listener: thinks[
         speaker: given(a in N, wpp=1),
-        speaker: given(s in State, wpp=binom_p(s)),
-        speaker: chooses(u in U, wpp=S1[s, a, u](alpha))
+        speaker: given(s in N, wpp=binompmf(s, {NN}, {base_rate})),
+        speaker: chooses(u in U, wpp=S1[a, s, u](alpha))
     ]
     listener: observes [speaker.u] is u
 
     listener: knows(a)
-    return listener[Pr[speaker.a == _a]]
-
-    
+    return listener[Pr[speaker.a == a]]
+L1(1)[U.SOME, :]    
 ```
+{: data-executable="true" data-thebe-executable="true"}
 
 This formulation of the pragmatic listener differs in two respects from the previous. First, the pragmatic listener also has a (possibly uncertain) prior belief about $$a$$, which we can think of as prior knowledge of the likely extent of the speaker's competence. Second, the new formulation also refers to a [hypergeometric distribution](https://en.wikipedia.org/wiki/Hypergeometric_distribution), which we use as a more general way of representing the speaker's (possibly partial) beliefs.
 
