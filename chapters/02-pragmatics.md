@@ -144,6 +144,7 @@ class Utterance(IntEnum):
   SOME = 1
   NONE = 2
 
+base_rate = 0.5
 NumRed = jnp.array([0,1,2,3])
 
 # possible states of the world
@@ -170,12 +171,11 @@ def meaning(utterance, state):
     ])[utterance]
 
 @jax.jit
-def obs_p(s, o, a): 
+def obs_p(o, s, a): 
   s_array = jnp.array([State.apple1(s), State.apple2(s), State.apple3(s)])
-  o_array = jnp.array([State.apple1(o), State.apple2(o), State.apple3(o)])
   a_array = jnp.array([State.apple1(a), State.apple2(a), State.apple3(a)])
-  ps = jnp.where(a_array, jnp.equal(s_array, o_array), .5)
-  return jnp.prod(ps)
+  N = jnp.sum(jnp.where(a_array, s_array, 0))
+  return jnp.equal(N, o) 
 
 @jax.jit
 def binom_p(s):
@@ -229,10 +229,6 @@ test_listener(Utterance.SOME, 6)
 
 We have to enrich the speaker model: first the speaker makes an observation $$o$$ of the true state $$s$$ with access $$a$$. On the basis of this observation, the speaker infers $$s$$.
 
-```python
-
-```
-
 > **Exercise:** See what happens when you change the red apple base rate.
 
 Given potential uncertainty about the world state $$s$$, the speaker's probabilistic production rule has to be adapted from the simpler formulation in [Chapter I](01-introduction.html). This rule is now no longer a function of the true $$s$$ (because, with limited access, the speaker might not know $$s$$), but of what the speaker *believes* $$s$$ to be (i.e., the speaker's epistemic state, given the speaker's access). In the case at hand, the speaker's epistemic state $$P_{S_{1}}(\cdot \mid o,a) \in \Delta(S)$$ is given by access $$a$$ and observation $$o$$, as in the belief model implemented just above.
@@ -247,120 +243,8 @@ $$P_{S_{1}}(u\mid o, a) \propto P_{S_{1}}(s\mid o, a) \ P_{S_{1}}(u \mid s)$$
 
 $$P_{S_{1}}(u \mid s) \propto  exp(\alpha[U(u; s)])$$
 
-~~~~
-// pragmatic speaker
-var speaker = cache(function(access,state) {
-  return Infer({model: function(){
-    var utterance = utterancePrior()
-    var beliefState = belief(state,access)
-    factor(alpha * (literalListener(utterance).score(beliefState) - cost(utterance)))
-    return utterance
-  }})
-});
-~~~~
 
 The intuition (which Goodman and Stuhlmüller validate experimentally) is that in cases where the speaker has partial knowledge access (say, she knows about only two out of three relevant apples), the listener will be less likely to calculate the implicature (because he knows that the speaker doesn't have the evidence to back up the strengthened meaning).
-
-~~~~
-///fold:
-// tally up the state
-var numTrue = function(state) {
-  var fun = function(x) {
-    x ? 1 : 0
-  }
-  return sum(map(fun,state))
-}
-
-// possible states of the world
-var states = [[true,true,true], 
-              [false,true,true], 
-              [true,false,true],
-              [true,true,false],    
-              [false,false,true],
-              [false,true,false],
-              [true,false,false],
-              [false,false,false]]
-///
-
-// Here is the code from the Goodman and Stuhlmüller speaker-access SI model
-
-// red apple base rate
-var baserate = 0.8
-
-// state prior
-var statePrior = function() {
-  var s1 = flip(baserate)
-  var s2 = flip(baserate)
-  var s3 = flip(baserate)
-  return [s1,s2,s3]
-}
-
-// speaker belief function
-var belief = function(actualState, access) {
-  var fun = function(access_val,state_val) {
-    return access_val ? state_val : uniformDraw(statePrior())
-  }
-  return map2(fun, access, actualState);
-}
-
-// utterance prior
-var utterancePrior = function() {
-  uniformDraw(['all','some','none'])
-}
-
-// cost function for utterances
-var cost = function(utterance){
-  utterance == "all" ? 1 :
-  utterance == "some" ? 1 :
-  utterance == "none" ? 1 :
-  0
-}
-
-// meaning funtion to interpret utterances
-var literalMeanings = {
-  all: function(state) { return all(function(s){s}, state); },
-  some: function(state) { return any(function(s){s}, state); },
-  none: function(state) { return all(function(s){s==false}, state); }
-};
-
-// literal listener
-var literalListener = cache(function(utt) {
-  return Infer({model: function(){
-    var state = uniformDraw(states)
-    var meaning = literalMeanings[utt]
-    condition(meaning(state))
-    return state
-  }})
-});
-
-// set speaker optimality
-var alpha = 1
-
-// pragmatic speaker
-var speaker = cache(function(access,state) {
-  return Infer({model: function(){
-    var utterance = utterancePrior()
-    var beliefState = belief(state,access)
-    factor(alpha * (literalListener(utterance).score(beliefState) - cost(utterance)))
-    return utterance
-  }})
-});
-
-// pragmatic listener
-var pragmaticListener = cache(function(utt,access) {
-  return Infer({model: function(){
-    var state = statePrior()
-    observe(speaker(access,state),utt)
-    return numTrue(state)
-  }})
-});
-
-print("pragmatic listener for a full-access speaker:")
-viz.auto(pragmaticListener('some',[true,true,true]))
-print("pragmatic listener for a partial-access speaker:")
-viz.auto(pragmaticListener('some',[true,true,false]))
-
-~~~~
 
 > **Exercises:** 
 > 1. Check the predictions for the other possible knowledge states.
@@ -368,8 +252,6 @@ viz.auto(pragmaticListener('some',[true,true,false]))
 > 3. Notice that the listener assigns some positive probability to the true state being 0, even when it is shared knowledge that the speaker saw 2 apples and said "some". Why is this puzzling? (Think about the Gricean Maxim of Quality demanding that speakers not say what they lack sufficient evidence for.) Look at the speaker choice function implemented above and explain why this behavior takes place.
 
 We have seen how the RSA framework can implement the mechanism whereby utterance interpretations are strengthened. Through an interaction between what was said, what could have been said, and what all of those things literally mean, the model delivers scalar implicature. And by taking into account awareness of the speaker's knowledge, the model successfully *blocks* implicatures in those cases where listeners are unlikely to access them. 
-
-
 
 ##### Joint-inferences of world state and speaker competence
 
@@ -393,20 +275,37 @@ If the speaker communicates her belief state with a statement like "Some of the 
 
 $$P_{L_{1}}(s, a, o \mid u) \propto P_{S_{1}}(u\mid a, o) \cdot P(s,a,o)$$
 
-~~~~
-// pragmatic listener
-var pragmaticListener = function(utt) {
-  return Infer({model: function(){
-    var state = statePrior()
-    var access = accessPrior()
-    var observed = observePrior()
-    factor(Math.log(hypergeometricPMF(observed, total_apples,
-                                      state, access)))
-    observe(speaker(access, observed), utt)
-    return {state, access, observed}
-  }})
-}
-~~~~
+```python
+@memo
+def S1[_s: State, _a: State, _u: Utterance](alpha):
+    actualworld: knows(_a, _s)
+    world: chooses(_o in N, wpp=p_obs(_s, _o, _a))
+
+    speaker: knows(_a)
+    speaker: thinks[
+        hypotheticalworld: knows(_a),
+        hypotheticalworld: chooses(s in N, wpp=binom_p(s)),
+        hypotheticalworld: chooses(o in N, wpp=p_obs(s, o, a)),
+    ]
+    speaker: observes [hypotheticalworld.o] is actualworld._o
+
+    # now instead of guessing s, speaker marginalizes over uncertainty about world state
+    speaker: chooses(u in U, wpp=exp(alpha * E[log(1e-5 + L0[u, world.s]())]))
+    return Pr[speaker.u == u]
+
+def L1[_a: State, _u: Utterance](alpha):
+    listener: thinks[
+        speaker: given(a in N, wpp=1),
+        speaker: given(s in State, wpp=binom_p(s)),
+        speaker: chooses(u in U, wpp=S1[s, a, u](alpha))
+    ]
+    listener: observes [speaker.u] is u
+
+    listener: knows(a)
+    return listener[Pr[speaker.a == _a]]
+
+    
+```
 
 This formulation of the pragmatic listener differs in two respects from the previous. First, the pragmatic listener also has a (possibly uncertain) prior belief about $$a$$, which we can think of as prior knowledge of the likely extent of the speaker's competence. Second, the new formulation also refers to a [hypergeometric distribution](https://en.wikipedia.org/wiki/Hypergeometric_distribution), which we use as a more general way of representing the speaker's (possibly partial) beliefs.
 
