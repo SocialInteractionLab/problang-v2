@@ -129,8 +129,6 @@ $$P_{S_{1}}(u\mid s, a) = \sum_o P_{S_{1}}(u \mid o, a) \cdot P(o
 
 is obtained from marginalizing out the possible observations $$o$$. 
 
-We can write the L1 as follows:
-
 ```python
 from memo import memo
 import jax
@@ -143,8 +141,9 @@ class Utterance(IntEnum):
   ALL = 0
   SOME = 1
   NONE = 2
+  NULL = 3
 
-base_rate = 0.5
+base_rate = 0.62
 NumRed = jnp.array([0,1,2,3])
 
 # possible states of the world
@@ -168,6 +167,7 @@ def meaning(utterance, state):
         num_red(state) == 3,  # ALL: true if 3/3 apples are red
         num_red(state) >= 1,  # SOME: true if at least one is red
         num_red(state) == 0,  # NONE: true if 0/3 apples are red
+      	True                  # NULL: always true
     ])[utterance]
 
 @jax.jit
@@ -185,23 +185,22 @@ def binom_p(s):
 def L0[_u: Utterance, _s: State]():
   listener: knows(_u)
   listener: chooses(s in State, wpp=meaning(_u, s))
-  return Pr[listener.s == _s]
+
+  # add a tiny number to prevent NaNs when logging
+  return Pr[listener.s == _s] + 1e-10
 
 @memo
-def S1[_s: State, _a: State, _u: Utterance](alpha):
-  actualworld: knows(_a, _s)
-  actualworld: chooses(_o in NumRed, wpp=obs_p(_o, _s, _a))
-  
+def S1[_o: NumRed, _a: State, _u: Utterance](alpha):  
   speaker: knows(_a)
   speaker: thinks[
-    hypotheticalworld: knows(_a),
-    hypotheticalworld: chooses(s in State, wpp = binom_p(s)),
-    hypotheticalworld: chooses(o in NumRed, wpp = obs_p(o, s, _a))
+    world: knows(_a),
+    world: chooses(s in State, wpp = binom_p(s)),
+    world: chooses(o in NumRed, wpp = obs_p(o, s, _a))
   ]
-  speaker: observes [hypotheticalworld.o] is actualworld._o
 
-  speaker: guesses(s in State, wpp=Pr[s == hypotheticalworld.s])  
-  speaker: chooses(u in Utterance, wpp=exp(alpha * log(L0[u, s]())))
+  speaker: observes [world.o] is _o
+  speaker: chooses(u in Utterance, 
+                   wpp=exp(alpha * E[log(L0[u, world.s]()]))
   return Pr[speaker.u == _u]
 
 @memo
@@ -210,7 +209,8 @@ def L1[_n: NumRed, _a: State, _u: Utterance](alpha):
   listener: thinks[
     speaker: knows(_a),
     speaker: given(s in State, wpp=binom_p(s)),
-    speaker: chooses(u in Utterance, wpp=S1[s, _a, u](alpha))
+    speaker: given(o in NumRed, wpp = obs_p(o, s, _a)),
+    speaker: chooses(u in Utterance, wpp=S1[o, _a, u](alpha))
   ]
 
   listener: observes [speaker.u] is _u
@@ -218,11 +218,11 @@ def L1[_n: NumRed, _a: State, _u: Utterance](alpha):
   return listener[Pr[num_red(speaker.s) == _n]]
 
 def test_listener(utt, access):
-  outcomes = L1(1)
+  outcomes = L1(3)
   for n in NumRed:
     print(f"P({n} | u={utt.name}, a={State._tuple(access)}) = {outcomes[n][access][utt]:.3f}")
 
-test_listener(Utterance.SOME, 7)
+test_listener(Utterance.SOME, 1)
 ```
 {: data-executable="true" data-thebe-executable="true"}
 
@@ -275,78 +275,96 @@ If the speaker communicates her belief state with a statement like "Some of the 
 $$P_{L_{1}}(s, a, o \mid u) \propto P_{S_{1}}(u\mid a, o) \cdot P(s,a,o)$$
 
 ```python
-from memo import memo, domain
-from enum import IntEnum
-
+from memo import memo
 import jax
-import jax.numpy as np
-from jax.scipy.stats.binom import pmf as binompmf
-from jax.scipy.special import factorial
-binompmf = jax.jit(binompmf)
+import jax.numpy as jnp
+from enum import IntEnum
+from memo import domain
 
-NN = 3  # total number of apples
-N = np.arange(NN + 1)
-base_rate = 0.8
+# possible utterances
+class Utterance(IntEnum):
+  ALL = 0
+  SOME = 1
+  NONE = 2
+  NULL = 3
 
-class U(IntEnum):
-    NONE = 0
-    SOME = 1
-    ALL = 3
+base_rate = 0.62
+NumRed = jnp.array([0,1,2,3])
 
-@jax.jit  # hypergeometric pmf
-def p_obs(s, o, a):
-    # binomial coefficient
-    def nck(n, k): return np.where((k < 0) | (k > n), 0, factorial(n) / factorial(k) / factorial(n - k))
+# possible states of the world
+class Apple(IntEnum):
+  GREEN = 0
+  RED = 1
+  
+State = domain(
+  apple1=len(Apple),
+  apple2=len(Apple),
+  apple3=len(Apple)
+)
 
-    # probability of seeing $o$ red apples out of $a$ if $s/n$ are red
-    return nck(a, o) * nck(NN - a, s - o) / nck(NN, s)
+@jax.jit
+def num_red(s):
+    return State.apple1(s) + State.apple2(s) + State.apple3(s)
 
-@memo  # literal listener
-def L0[u: U, s: N]():
-    listener: knows(u)
-    listener: chooses(s in N, wpp=(
-        (s == {NN}) if u == {U.ALL}  else
-        (s > 0)     if u == {U.SOME} else
-        (s == 0)    if u == {U.NONE} else
-        0
-    ))
-    return Pr[listener.s == s]
+@jax.jit
+def meaning(utterance, state):
+    return jnp.array([
+        num_red(state) == 3,  # ALL: true if 3/3 apples are red
+        num_red(state) >= 1,  # SOME: true if at least one is red
+        num_red(state) == 0,  # NONE: true if 0/3 apples are red
+      	True
+    ])[utterance]
+
+@jax.jit
+def obs_p(o, s, a): 
+  s_array = jnp.array([State.apple1(s), State.apple2(s), State.apple3(s)])
+  a_array = jnp.array([State.apple1(a), State.apple2(a), State.apple3(a)])
+  N = jnp.sum(jnp.where(a_array, s_array, 0))
+  return N == o 
+
+@jax.jit
+def binom_p(s):
+  return base_rate**num_red(s) * (1 - base_rate)**(3 - num_red(s))
+
+@memo  
+def L0[_u: Utterance, _s: State]():
+  listener: knows(_u)
+  listener: chooses(s in State, wpp=meaning(_u, s))
+  return Pr[listener.s == _s] + 1e-10
 
 @memo
-def S1[a: N, s: N, u: U](alpha):
-    world: knows(a, s)
-    world: chooses(o in N, wpp=p_obs(s, o, a))
+def S1[_o: NumRed, _a: State, _u: Utterance](alpha):  
+  speaker: knows(_a)
+  speaker: thinks[
+    world: knows(_a),
+    world: chooses(s in State, wpp = binom_p(s)),
+    world: chooses(o in NumRed, wpp = obs_p(o, s, _a))
+  ]
+  speaker: observes [world.o] is _o
 
-    speaker: knows(a)
-    speaker: thinks[
-        world: knows(a),
-        world: chooses(s in N, wpp=binompmf(s, {NN}, {base_rate})),
-        world: chooses(o in N, wpp=p_obs(s, o, a)),
-    ]
-    speaker: observes [world.o] is world.o
-
-    # now instead of guessing s, speaker marginalizes over uncertainty in utility
-    speaker: chooses(u in U, wpp=exp(alpha * E[log(1e-5 + L0[u, world.s]())]))
-    # alternatively, if you want it in terms of KL-divergence...
-    # imagine[
-    #     listener: knows(u),
-    #     listener: guesses(s in N, wpp=L0[u, s]()),
-    #     exp(alpha * -KL[world.s | listener.s])
-    # ])
-    return Pr[speaker.u == u]
+  speaker: chooses(u in Utterance, 
+                   wpp=exp(alpha * E[log(L0[u, world.s]())]))
+  return Pr[speaker.u == _u]
 
 @memo
-def L1[u: U, a: N](alpha):
-    listener: thinks[
-        speaker: given(a in N, wpp=1),
-        speaker: given(s in N, wpp=binompmf(s, {NN}, {base_rate})),
-        speaker: chooses(u in U, wpp=S1[a, s, u](alpha))
-    ]
-    listener: observes [speaker.u] is u
+def L1[_a: State, _u: Utterance](alpha):
+  listener: knows(_a)
+  listener: thinks[
+    speaker: given(a in State, wpp=1),
+    speaker: given(s in State, wpp=binom_p(s)),
+    speaker: given(o in NumRed, wpp = obs_p(o, s, a)),
+    speaker: chooses(u in Utterance, wpp=S1[o, a, u](alpha))
+  ]
 
-    listener: knows(a)
-    return listener[Pr[speaker.a == a]]
-L1(1)[U.SOME, :]    
+  listener: observes [speaker.u] is _u
+  return listener[Pr[num_red(speaker.a) == _a]]
+
+def test_listener(utt):
+  outcomes = L1(3)
+  for a in NumRed:
+    print(f"P({a} | u={utt.name}) = {outcomes[a][utt]:.3f}")
+
+test_listener(Utterance.SOME)
 ```
 {: data-executable="true" data-thebe-executable="true"}
 
@@ -354,119 +372,16 @@ This formulation of the pragmatic listener differs in two respects from the prev
 
 Here is how to understand the speaker belief model in terms of a hypergeometric distribution. We first look at the speaker's prior beliefs about $$s$$: what does a speaker believe about the world state $$s$$ after, say, having access to $$a$$ out of $$n$$ apples and seeing that $$o$$ of the accessed apples are red? These beliefs are given by a binomial distribution with a fixed base rate of redness: intuitively put, each apple has a chance `base_rate` of being red; how many red apples do we expect given that we have $$n$$ apples in total?
 
-~~~~
-// total number of apples (known by speaker and listener)
-var total_apples = 3
-
-// red apple base rate
-var base_rate_red = 0.8
-
-// state = how many apples of 'total_apples' are red?
-var statePrior = function() {
-  binomial({p: base_rate_red, n: total_apples})
-}
-
-Infer(statePrior)
-~~~~
-
 > Exercise: Play around with `total_apples` and `base_rate_red` to get good intuitions about the state prior for different parameters. (For which values of `total_apples` and `base_rate_red` would it be better to take more samples for a more precise visualization?)
 
 
 A world state $$s$$ gives the true, actual number of red apples. If the world state was known to the speaker (and the total number of apples $$n$$), her beliefs for any value of $$o$$ for a given $$a$$ are given by a so-called [hypergeometric distribution](https://en.wikipedia.org/wiki/Hypergeometric_distribution). The hypergeometric distribution gives the probability of retrieving $$o$$ red balls when drawing $$a$$ balls without replacement from an urn which contains $$n$$ balls in total of which $$s$$ are red. (This distribution is not implemented in WebPPL, so we implement its probability mass function by hand. Although this is tedious and the previous coding-by-hand might be more insightful, this formulation allows for easier manipulation of $$o$$, $$a$$ and $$s$$ as actual numbers.)
 
-~~~~
-
-var factorial = function(x) {
-  if (x < 0) {return "input to factorial function must be non-negative"}
-  return x == 0 ? 1 : x * factorial(x-1)
-}
-
-var binom = function(a, b) {
-  var numerator = factorial(a)
-  var denominator = factorial(a-b) *  factorial(b)
-  return numerator / denominator
-}
-
-// urn contains N balls of which K are black
-// and N-K are white; we draw n balls at random
-// without replacement; what's the probability
-// of obtaining k black balls?
-var hypergeometricPMF = function(k,N,K,n) {
-  k > Math.min(n, K) ? 0 :
-  k < n+K-N ? 0 :       
-  binom(K,k) * binom(N-K, n-k) / binom(N,n)
-}
-
-var hypergeometricSample = function(N,K,n) {
-  var support = _.range(N+1) // possible values 0, ..., N
-  var PMF = map(function(k) {hypergeometricPMF(k,N,K,n)}, support)
-  categorical({vs: support, ps: PMF })    
-}
-
-var total_apples = 3, state = 2, access = 1;
-Infer(function() {hypergeometricSample(total_apples, state, access)})
-~~~~
 
 The prior over states and the hypergeometric distribution combine to give the speaker's beliefs about world state $$s$$ given access $$a$$ and observation $$o$$, using Bayes rule (and knowledge of the total number of apples $$n$$):
 
 $$P_{S_1}(s \mid a, o) \propto \text{Hypergeometric}(o \mid s, a, n) \ \text{Binomial}(s \mid \text{baserate, n}) $$
 
-~~~~
-
-// code for hypergeometric 
-///fold:
-var factorial = function(x) {
-  if (x < 0) {return "input to factorial function must be non-negative"}
-  return x == 0 ? 1 : x * factorial(x-1)
-}
-
-var binom = function(a, b) {
-  var numerator = factorial(a)
-  var denominator = factorial(a-b) *  factorial(b)
-  return numerator / denominator
-}
-
-// urn contains N balls of which K are black
-// and N-K are white; we draw n balls at random
-// without replacement; what's the probability
-// of obtaining k black balls?
-var hypergeometricPMF = function(k,N,K,n) {
-  k > Math.min(n, K) ? 0 :
-  k < n+K-N ? 0 :       
-  binom(K,k) * binom(N-K, n-k) / binom(N,n)
-}
-
-var hypergeometricSample = function(N,K,n) {
-  var support = _.range(N+1) // possible values 0, ..., N
-  var PMF = map(function(k) {hypergeometricPMF(k,N,K,n)}, support)
-  categorical({vs: support, ps: PMF })    
-}
-///
-
-// total number of apples (known by speaker and listener)
-var total_apples = 3
-
-// red apple base rate
-var base_rate_red = 0.8
-
-// state = how many apples of 'total_apples' are red?
-var statePrior = function() {
-  binomial({p: base_rate_red, n: total_apples})
-}
-
-var belief = cache(function(access, observed){
-  Infer({model: function() {
-    var state = statePrior()
-    var hyperg_sample = hypergeometricSample(total_apples,
-                         state,
-                         access)
-    condition(hyperg_sample == observed)
-    return state
-  }}) 
-})
-
-viz(belief(2,1))
-~~~~
 
 
 > **Exercises:** 
@@ -483,275 +398,87 @@ The speaker's utility function remains unchanged:
 
 $$U_{S_{1}}(u; s) = log(L_{0}(s\mid u)) - C(u)$$
 
-~~~~
-// expected utilities
-var get_EUs = function(access, observed, utterance){
-  var EUs = sum(map(function(s) {
-      var eu_at_state = Math.exp(belief(access, observed).score(s)) *
-          literalListener(utterance).score(s)
-      _.isNaN(eu_at_state) ? 0 : eu_at_state // convention here: 0*-Inf=0
-    }, _.range(total_apples + 1)))
-  return EUs
-}
-
-// pragmatic speaker
-var speaker = function(access, observed) {
-  return Infer({model: function(){
-    var utterance = utterancePrior()
-    var EUs = get_EUs(access, observed, utterance)
-    factor(alpha * EUs)
-    return utterance
-  }})
-}
-~~~~
-
 An equivalent motivation for this speaker model is that the speaker chooses an utterance with the goal of minimizing the (Kullback-Leibler) divergence between her belief state $$P_{S_{1}}(\cdot \mid o,a)$$ and that of the literal listener $$P_{L_0}(\cdot \mid u)$$. Details are in [appendix chapter II](app-02-utilities.html).
 
 There is one important bit to notice about this definition. In the vanilla RSA model of the previous chapter, the speaker will never say anything false. The present conservative extension makes it so that an uncertain speaker will never use an utterance whose truth the speaker is not absolutely convinced of. In other words, as long as $$P_{S_{1}}(\cdot \mid o,a)$$ puts positive probability on a state $$s$$ for which utterance $$u$$ is false, the speaker will *never* use $$u$$ in epistemic state $$\langle o, a \rangle$$. This is because $$\log P_{L_0}(s \mid u)$$ is negative infinity if $$u$$ is false of $$s$$ and so the expected utility (which is a weighted sum) will be negative infinity as well, unless $$P_{S_{1}}(s \mid o,a) = 0$$. As a consequence, we need to make sure in the model that the speaker always has something true to say for all pairs of $$a$$ and $$o$$. We do this by including a "null utterance", which is like saying nothing. (See also [chapter V](05-vagueness.html) and reft:PottsLassiter2016:Embedded-implic for similar uses of a "null utterance".) 
 
 Adding a set of utterances, an utterance prior and the literal listener, we obtain a full speaker model.
 
-~~~
-// red apple base rate
-var total_apples = 3
-var base_rate_red = 0.8
-
-// state = how many apples of 'total_apples' are red?
-var statePrior = function() {
-  binomial({p: base_rate_red, n: total_apples})
-}
-
-// binomial-hypergeometric belief model
-///fold:
-var factorial = function(x) {
-  if (x < 0) {return "input to factorial function must be non-negative"}
-  return x == 0 ? 1 : x * factorial(x-1)
-}
-
-var binom = function(a, b) {
-  var numerator = factorial(a)
-  var denominator = factorial(a-b) *  factorial(b)
-  return numerator / denominator
-}
-
-// urn contains N balls of which K are black
-// and N-K are white; we draw n balls at random
-// without replacement; what's the probability
-// of obtaining k black balls?
-var hypergeometricPMF = function(k,N,K,n) {
-  k > Math.min(n, K) ? 0 :
-  k < n+K-N ? 0 :
-  binom(K,k) * binom(N-K, n-k) / binom(N,n)
-}
-
-var hypergeometricSample = function(N,K,n) {
-  var support = _.range(N+1) // possible values 0, ..., N
-  var PMF = map(function(k) {hypergeometricPMF(k,N,K,n)}, support)
-  categorical({vs: support, ps: PMF })
-}
-
-var belief = cache(function(access, observed){
-  Infer({model: function() {
-    var state = statePrior()
-    var hyperg_sample = hypergeometricSample(total_apples,
-                         state,
-                         access)
-    condition(hyperg_sample == observed)
-    return state
-  }})
-})
-///
-
-// utterance prior
-var utterancePrior = function() {
-  categorical({vs: ['all','some','none','null'],
-               ps: [1,1,1,0.0000001]})
-}
-
-// meaning function to interpret utterances
-var literalMeanings = {
-  all:  function(state) { state == total_apples },
-  some: function(state) { state > 0 },
-  none: function(state) { state == 0 },
-  null: function(state) { state >= 0 }
-}
-
-// literal listener
-var literalListener = cache(function(utt) {
-  return Infer({model: function(){
-    var state = statePrior()
-    var meaning = literalMeanings[utt]
-    condition(meaning(state))
-    return state
-  }})
-})
-
-// set speaker optimality
-var alpha = 1
-
-// expected utilities
-var get_EUs = function(access, observed, utterance){
-  var EUs = sum(map(function(s) {
-      var eu_at_state = Math.exp(belief(access, observed).score(s)) *
-          literalListener(utterance).score(s)
-      _.isNaN(eu_at_state) ? 0 : eu_at_state // convention here: 0*-Inf=0
-    }, _.range(total_apples + 1)))
-  return EUs
-}
-
-// pragmatic speaker
-var speaker = cache(function(access, observed) {
-  return Infer({model: function(){
-    var utterance = utterancePrior()
-    var EUs = get_EUs(access, observed, utterance)
-    factor(alpha * EUs)
-    return utterance
-  }})
-})
-
-viz(speaker(2,1))
-~~~
 
 > **Exercises:**
 > 1. Test the speaker model for different parameter values. Also change `total_apples` and `base_rate_red`.
 > 2. When does the speaker use the "null" utterance?
 
-
-
 If the pragmatic listener does not know the number $$a$$ of apples that the speaker saw, the listener can nevertheless infer likely values for $$a$$, given an utterance. In fact, the listener can make a joint inference of $$s$$, $$a$$ and $$o$$, all of which are unknown to him, but all of which feed into the speaker's utterance probabilities. The posterior inference of $$a$$ is particularly interesting because it is a probabilistic inference of the speaker's competence, mediated by what the speaker said.
 
-~~~~
-// red apple base rate
-var total_apples = 3
-var base_rate_red = 0.8
+```python
+from memo import memo
+from enum import IntEnum
 
-// state = how many apples of 'total_apples' are red?
-var statePrior = function() {
-  binomial({p: base_rate_red, n: total_apples})
-}
+import jax
+import jax.numpy as np
+from jax.scipy.special import factorial
+from jax.scipy.stats.binom import pmf as binompmf
+binompmf = jax.jit(binompmf)
 
-// binomial-hypergeometric belief model
-///fold:
-var factorial = function(x) {
-  if (x < 0) {return "input to factorial function must be non-negative"}
-  return x == 0 ? 1 : x * factorial(x-1)
-}
+NN = 3  # total number of apples
+N = np.arange(NN + 1)
+base_rate = 0.62
 
-var binom = function(a, b) {
-  var numerator = factorial(a)
-  var denominator = factorial(a-b) *  factorial(b)
-  return numerator / denominator
-}
+class U(IntEnum):
+    NONE = 0
+    SOME = 1
+    ALL = 2
+    NULL = 3
 
-// urn contains N balls of which K are black
-// and N-K are white; we draw n balls at random
-// without replacement; what's the probability
-// of obtaining k black balls?
-var hypergeometricPMF = function(k,N,K,n) {
-  k > Math.min(n, K) ? 0 :
-  k < n+K-N ? 0 :
-  binom(K,k) * binom(N-K, n-k) / binom(N,n)
-}
+@jax.jit  # hypergeometric pmf
+def p_obs(s, o, a):
+    # binomial coefficient
+    def nck(n, k): return np.where((k < 0) | (k > n), 0, factorial(n) / factorial(k) / factorial(n - k))
 
-var hypergeometricSample = function(N,K,n) {
-  var support = _.range(N+1) // possible values 0, ..., N
-  var PMF = map(function(k) {hypergeometricPMF(k,N,K,n)}, support)
-  categorical({vs: support, ps: PMF })
-}
+    # probability of seeing $o$ red apples out of $a$ if $s/n$ are red
+    return nck(a, o) * nck(NN - a, s - o) / nck(NN, s)
 
-var belief = cache(function(access, observed){
-  Infer({model: function() {
-    var state = statePrior()
-    var hyperg_sample = hypergeometricSample(total_apples,
-                         state,
-                         access)
-    condition(hyperg_sample == observed)
-    return state
-  }})
-})
-///
+@memo  # literal listener
+def L0[u: U, s: N]():
+    listener: knows(u)
+    listener: chooses(s in N, wpp=(
+        (s == {NN}) if u == {U.ALL}  else
+        (s > 0)     if u == {U.SOME} else
+        (s == 0)    if u == {U.NONE} else
+        1           
+    ))
+    return Pr[listener.s == s] + 1e-10 
 
-// speaker model (as before)
-///fold:
+@memo  # pragmatic speaker with limited access
+def S1[a: N, o: N, u: U](alpha):
+    speaker: knows(a)
+    speaker: thinks[
+        world: knows(a),
+        world: chooses(s in N, wpp=binompmf(s, {NN}, {base_rate})),
+        world: chooses(o in N, wpp=p_obs(s, o, a)),
+    ]
+    speaker: observes [world.o] is o
 
-// utterance prior
-var utterancePrior = function() {
-  categorical({vs: ['all','some','none','null'],
-               ps: [1,1,1,0.0000001]})
-}
+    speaker: chooses(u in U, wpp=exp(alpha * E[log(L0[u, world.s]())]))
+    return Pr[speaker.u == u]
 
-// meaning function to interpret utterances
-var literalMeanings = {
-  all:  function(state) { state == total_apples },
-  some: function(state) { state > 0 },
-  none: function(state) { state == 0 },
-  null: function(state) { state >= 0 }
-}
+@memo
+def L1[u: U, a: N](alpha):
+    listener: knows(a)
+    listener: thinks[
+        speaker: given(a in N, wpp=binompmf(a, {NN}, .5)),
+        speaker: given(s in N, wpp=binompmf(s, {NN}, {base_rate})),
+        speaker: given(o in N, wpp=p_obs(s, o, a)),
+        speaker: chooses(u in U, wpp=S1[a, o, u](alpha))
+    ]
+    listener: observes [speaker.u] is u
 
-// literal listener
-var literalListener = cache(function(utt) {
-  return Infer({model: function(){
-    var state = statePrior()
-    var meaning = literalMeanings[utt]
-    condition(meaning(state))
-    return state
-  }})
-})
+    return listener[Pr[speaker.a == a]]
 
-// set speaker optimality
-var alpha = 1
-
-// expected utilities
-var get_EUs = function(access, observed, utterance){
-  var EUs = sum(map(function(s) {
-      var eu_at_state = Math.exp(belief(access, observed).score(s)) *
-          literalListener(utterance).score(s)
-      _.isNaN(eu_at_state) ? 0 : eu_at_state // convention here: 0*-Inf=0
-    }, _.range(total_apples + 1)))
-  return EUs
-}
-
-// pragmatic speaker
-var speaker = cache(function(access, observed) {
-  return Infer({model: function(){
-    var utterance = utterancePrior()
-    var EUs = get_EUs(access, observed, utterance)
-    factor(alpha * EUs)
-    return utterance
-  }})
-})
-///
-
-var observePrior = function(){
-  uniformDraw(_.range(total_apples + 1))
-}
-
-var accessPrior = function(){
-  uniformDraw(_.range(total_apples + 1))
-}
-
-var pragmaticListener = cache(function(utt) {
-  return Infer({method: "enumerate",
-//                 strategy: "breadthFirst",
-                model: function(){
-    var state = statePrior()
-    var access = accessPrior()
-    var observed = observePrior()
-    factor(Math.log(hypergeometricPMF(observed, total_apples,
-                                      state, access)))
-    observe(speaker(access, observed), utt)
-    return {state, access, observed}
-  }})
-});
-
-var pl = pragmaticListener("some")
-display("Marginal beliefs about the true world state:")
-viz(marginalize(pl, 'state'))
-display("Marginal beliefs about how many apples the speaker observed in total:")
-viz(marginalize(pl, 'access'))
-display("Marginal beliefs about how many apples the speaker observed to be red:")
-viz(marginalize(pl, 'observed'))
-~~~~
+L1(3.2)[Utterance.SOME, :]
+```
+{: data-executable="true" data-thebe-executable="true"}
 
 > **Exercises:**
 > 1. How would you describe the result of the code above? Does the pragmatic listener draw a scalar implicature from "some" to "some but not all"?
