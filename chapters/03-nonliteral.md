@@ -83,6 +83,7 @@ print(f"Price QUD answer: price index {prices[project(example_state, QUD.PRICE)]
 print(f"Valence QUD answer: {project(example_state, QUD.VALENCE)}")
 print(f"ApproxPrice QUD answer: price index {prices[project(example_state, QUD.APPROX_PRICE)]}")
 ```
+{: data-executable="true" data-thebe-executable="true"}
 
 Accurately modeling world knowledge is key to getting appropriate inferences from the world. Kao et al. achieve this using **prior elicitation**, an empirical methodology for gathering precise quantitative information about interlocutors' relevant world knowledge. They do this to estimate the prior knowledge people carry about the price of an object (in this case, an *electric kettle*), as well as the probability of getting upset (i.e., experiencing a negatively-valenced affect) in response to a given price.
 
@@ -125,6 +126,7 @@ prior_2d = prior.reshape(len(prices), 2)
 print(prior_2d.sum(axis=1))  # sum over valences
 print(prior_2d.sum(axis=0))  # sum over prices
 ```
+{: data-executable="true" data-thebe-executable="true"}
 
 > **Exercise:** Use `Infer()` to visualize the joint distribution on price and valence. (Hint: You'll want to run inference over a function that returns an object like the following: `{price: aPrice, valence: aValence}`.)
 
@@ -144,7 +146,6 @@ $$P_{L_{1}}(s \mid u) \propto \sum_{q}  P_{S_{1}}(u \mid s, q) \ P(q) \ P(s)  $$
 Here is the full model:
 
 ```python
-
 @jax.jit
 def meaning(u, s):
     return u == State.price(s)
