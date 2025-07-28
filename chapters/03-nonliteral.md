@@ -180,7 +180,7 @@ def state_p(s) :
 
 @jax.jit
 def meaning(u, s):
-    return u == State.price(s)
+    return u == S.price(s)
 
 # Define QUDs
 class QUD(IntEnum):
@@ -203,15 +203,15 @@ def approx(price):
 
 @jax.jit
 def project(s, qud): 
-    approx_price = approx(prices[State.price(s)])
+    approx_price = approx(prices[S.price(s)])
     closest_id = jnp.argmin(jnp.abs(prices - approx_price))
     return jnp.array([
-      State.price(s),        # QUD.PRICE
-      State.valence(s),      # QUD.VALENCE
- 	    s,                     # QUD. PRICE_VALENCE
-      closest_id             # QUD.APPROX_PRICE
-      State.pack(closest_id, # QUD.APPROX_PRICE_VALENCE
-                 State.valence(s))
+      S.price(s),        # QUD.PRICE
+      S.valence(s),      # QUD.VALENCE
+      s,                     # QUD. PRICE_VALENCE
+      closest_id,            # QUD.APPROX_PRICE
+      S.pack(closest_id, # QUD.APPROX_PRICE_VALENCE
+             S.valence(s))
     ])[qud]
 
 @memo
