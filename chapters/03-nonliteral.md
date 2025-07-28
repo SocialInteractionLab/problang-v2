@@ -162,13 +162,13 @@ S = domain(
 
 @jax.jit
 def state_p(s) :
-  price = State.price(s)
+  price = S.price(s)
   price_p = jnp.array([
     0.4205, 0.3865,0.0533, 0.0538, 0.0223, 
     0.0211, 0.0112, 0.0111, 0.0083, 0.0120
   ])[price]   
 
-  valence = State.valence(s)
+  valence = S.valence(s)
   valence_p = jnp.array([
     [0.3173, 1-0.3173], [0.3173, 1-0.3173],
     [0.7920, 1-0.7920], [0.7920, 1-0.7920],
@@ -505,10 +505,10 @@ def analyze_metaphor(utterance, alpha=1, k=5):
   ind = jnp.argpartition(results, -k)[-k:]
   top5 = ind[jnp.argsort(-results[ind])]
   for i in top5: 
-    print(Category(S.category(i)).name, '-',
+    print(Category(S.category(i)).name, '(',
           Feature(S.large(i)).name, '-',
           Feature(S.graceful(i)).name, '-',
-          Feature(S.majestic(i)).name, ':',
+          Feature(S.majestic(i)).name, ') :\t',
           f'p={results[i]:.3f}')
 
 print(analyze_metaphor(U.WHALE, alpha = 3))
