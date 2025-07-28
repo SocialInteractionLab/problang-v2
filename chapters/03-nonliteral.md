@@ -16,8 +16,6 @@ reft:kaoetal2014 propose that we model hyperbole understanding as pragmatic infe
 In addition, the authors investigate the *pragmatic halo* effect, by considering a QUD that addresses *approximately* the exact price (`approxPrice`). Here are all of the QUDs we consider.
 
 ```python
-
-```python
 from memo import memo, domain
 import jax
 import jax.numpy as jnp
