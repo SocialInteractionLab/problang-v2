@@ -200,7 +200,7 @@ def S1[_o: NumRed, _a: State, _u: Utterance](alpha):
 
   speaker: observes [world.o] is _o
   speaker: chooses(u in Utterance, 
-                   wpp=exp(alpha * E[log(L0[u, world.s]()]))
+                   wpp=exp(alpha * E[log(L0[u, world.s]())]))
   return Pr[speaker.u == _u]
 
 @memo

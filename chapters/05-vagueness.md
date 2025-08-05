@@ -12,28 +12,7 @@ Sometimes our words themselves are imprecise, vague, and heavily dependent on co
 
 Lassiter & Goodman propose we parameterize the meaning function for sentences containing gradable adjectives so that their interpretations are underspecified (reft:lassitergoodman2013, reft:LassiterGoodman2015:Adjectival-vagu). This interpretation-fixing parameter, the gradable threshold value $$\theta$$ (i.e., a degree), is something that conversational participants can use their prior knowledge to actively reason about and set. As with the ambiguity-resolving variable in the [previous chapter](04-ambiguity.html), $$\theta$$ gets lifted to the level of the pragmatic listener, who jointly infers the gradable threshold (e.g., the point at which elements of the relevant domain count as expensive) and the true state (e.g., the indicated element's price).
 
-The model depends crucially on our prior knowledge of the world state. Let's start with a toy prior for the prices of books.
-
-```python
-from memo import memo, domain
-import jax
-import jax.numpy as jnp
-from enum import IntEnum
-
-# Define possible book prices
-prices = jnp.array([2, 6, 10, 14, 18, 22, 26, 30])
-Price = jnp.arange(len(prices))
-
-@jax.jit
-def state_pmf(price_idx):
-    """Prior probability of each price state"""
-    return jnp.array([1, 2, 3, 4, 4, 3, 2, 1])[price_idx]
-```
-{: data-executable="true" data-thebe-executable="true"}
-
-> **Exercise:** Visualize the `statePrior`.
-
-Next, we create a prior for the degree threshold $$\theta$$. Since we're talking about *expensive* books, $$\theta$$ will be the price cutoff to count as expensive. But we want to be able to use *expensive* to describe anything with a price, so we'll set the `thetaPrior` to be uniform over the possible prices in our world.
+The model depends crucially on our prior knowledge of the world state. We start with a toy prior for the prices of books and a prior for the degree threshold $$\theta$$. Since we're talking about *expensive* books, $$\theta$$ will be the price cutoff to count as expensive. But we want to be able to use *expensive* to describe anything with a price, so we'll set the `thetaPrior` to be uniform over the possible prices in our world.
 
 We introduce two possible utterances: saying that a book is *expensive*, or saying nothing at all (a "null utterance"). The semantics of the *expensive* utterance checks the relevant item's price against the price cutoff. The "null utterance" represents the speaker's choice to stay silent: silence is easier to produce than saying "expensive" and it is never (literally) false. (Whence, that rational speakers prefer silence over speech which is not informative; see below.) The model of the literal listener implemented here can be written as (where $$s$$ is general notation for the world state (here: price of a book), and $$\theta$$ is the threshold to be inferred later on):
 

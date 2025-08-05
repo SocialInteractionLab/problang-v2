@@ -29,7 +29,7 @@ class Valence(IntEnum):
   POSITIVE = 1  # Speaker is not upset
 
 # Define the full state space: price × valence
-State = domain(
+S = domain(
   price=len(Price),
   valence=len(Valence)
 )
@@ -81,7 +81,7 @@ def state_p(s):
     """Prior probability of state s = (price, valence)"""
     
     # Prior probability of each price (from human experiments)
-    price = State.price(s)
+    price = S.price(s)
     price_p = jnp.array([
         0.4205, 0.3865,  # $50, $51
         0.0533, 0.0538,  # $500, $501
@@ -91,7 +91,7 @@ def state_p(s):
     ])[price]   
 
     # Probability of negative valence given price (from human experiments)
-    valence = State.valence(s)
+    valence = S.valence(s)
     valence_p = jnp.array([
         [0.3173, 1-0.3173], [0.3173, 1-0.3173],  # $50, $51
         [0.7920, 1-0.7920], [0.7920, 1-0.7920],  # $500, $501
@@ -103,18 +103,18 @@ def state_p(s):
     return price_p * valence_p
 
 # Compute marginals
-prior = jnp.zeros(len(State))
-for s in range(len(State)):
+prior = jnp.zeros(len(S))
+for s in range(len(S)):
     prior = prior.at[s].set(state_p(s))
 
 # Reshape to (prices, valences) for easier marginalization
 prior_2d = prior.reshape(len(prices), 2)
 
 print('price marginals:')
-[print(f'p({prices[i]})={v:.2f}') for (i, v) in enumerate(np.array(prior_2d.sum(axis=1)))]
+[print(f'p({prices[i]})={v:.2f}') for (i, v) in enumerate(jnp.array(prior_2d.sum(axis=1)))]
 
 print('\nvalence marginals')
-print([f'p({Valence(i).name})={v:.2f}' for (i, v) in enumerate(np.array(prior_2d.sum(axis=0)))])
+print([f'p({Valence(i).name})={v:.2f}' for (i, v) in enumerate(jnp.array(prior_2d.sum(axis=0)))])
 ```
 {: data-executable="true" data-thebe-executable="true"}
 
@@ -243,7 +243,7 @@ def L1[_u: U, _s: S](alpha):
   
 # Look at marginals 
 def plot_marginals() :
-  posterior = L1(1)[np.where(prices == 10000)[0], :] # u=$10000
+  posterior = L1(1)[jnp.where(prices == 10000)[0], :] # u=$10000
   posterior_2d = posterior.reshape(len(prices), 2)  
   fig1 = plt.figure().gca()
   fig1.bar([str(p) for p in prices], posterior_2d.sum(axis=1))  # sum over valences
