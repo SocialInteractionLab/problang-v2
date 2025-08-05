@@ -29,6 +29,7 @@ def state_pmf(price_idx):
     """Prior probability of each price state"""
     return jnp.array([1, 2, 3, 4, 4, 3, 2, 1])[price_idx]
 ```
+{: data-executable="true" data-thebe-executable="true"}
 
 > **Exercise:** Visualize the `statePrior`.
 
@@ -115,6 +116,7 @@ plt.plot(prices, posterior_joint.sum(axis=1), label='price')
 plt.plot(prices, posterior_joint.sum(axis=0), label='theta')
 plt.legend()
 ```
+{: data-executable="true" data-thebe-executable="true"}
 
 > **Exercises:**
 > 1. Visualize the `thetaPrior` and `pricePrior`.
@@ -256,13 +258,12 @@ for idx, item in enumerate(Item):
 plt.tight_layout()
 plt.show()
 ```
+{: data-executable="true" data-thebe-executable="true"}
 
 > **Exercises:**
 > 1. Visualize the various state priors.
 > 2. Check $$L_1$$'s behavior for coffee makers and headphones and laptops.
 > 3. Add an $$S_2$$ layer to the model and check its predictions.
-
-
 
 #### Application 2: Inferring the comparison class
 
