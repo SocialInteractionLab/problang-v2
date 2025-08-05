@@ -262,7 +262,7 @@ print(f"P(BLUE) = {color_prior(Color.BLUE):.4f}")
 print("\nFull probability table:")
 print("Card | Side 1 | Side 2")
 print("----------------------")
-for card in cards:
+for card in Card:
     side1 = "RED" if check_color(card, 0) == Color.RED else "BLUE"
     side2 = "RED" if check_color(card, 1) == Color.RED else "BLUE"
     print(f"{card+1:4d} | {side1:6s} | {side2:6s}")
@@ -270,10 +270,10 @@ for card in cards:
 # Calculate and display posterior probabilities
 print("\nPosterior probabilities of cards given color:")
 print("\nGiven RED:")
-for card in cards:
+for card in Card:
     print(f"P(card {card+1} | RED) = {card_posterior(card, Color.RED):.4f}")
 print("\nGiven BLUE:")
-for card in cards:
+for card in Card:
     print(f"P(card {card+1} | BLUE) = {card_posterior(card, Color.BLUE):.4f}")
 ```
 {: data-executable="true" data-thebe-executable="true"}
@@ -324,7 +324,6 @@ color_prior(print_table=True)
 So far we haven't *inferered* anything, we've just set up a prior distribution. 
 This is sometimes called the "forward model" or the "generative model". 
 Now for the key question: given that we observed a blue side, what's the probability each card was selected? 
-This is where `memo`'s power really shines. 
 We can model this as an observer reasoning about what a friend (Jones) was thinking when they see the card:
 
 ```python
@@ -341,22 +340,7 @@ def card_posterior[_card: Card, _color: Color]():
     return observer[Pr[friend.card == _card]]
 
 print("\nPosterior probabilities:")
-res = card_posterior(print_table=True, return_aux=True, return_xarray=True)
-
-# Extract and display the results more clearly
-xa = res.aux.xarray
-pr_red = xa.loc[:, 'RED']
-pr_blue = xa.loc[:, 'BLUE']
-
-print(f"\nGiven we observed RED:")
-print(f"        P(card 1 | RED) = {pr_red.loc[0].sum():.4f}")
-print(f"        P(card 2 | RED) = {pr_red.loc[1].sum():.4f}")
-print(f"        P(card 3 | RED) = {pr_red.loc[2].sum():.4f}")
-
-print(f"\nGiven we observed BLUE:")
-print(f"        P(card 1 | BLUE) = {pr_blue.loc[0].sum():.4f}")
-print(f"        P(card 2 | BLUE) = {pr_blue.loc[1].sum():.4f}")
-print(f"        P(card 3 | BLUE) = {pr_blue.loc[2].sum():.4f}")
+card_posterior(print_table=True)
 ```
 {: data-executable="true" data-thebe-executable="true"}
 
