@@ -248,219 +248,93 @@ plt.show()
 
 Implicit in the adjectives model from reft:lassitergoodman2013 is an awareness of the relevant comparison class: expensive for a watch vs. for a sweater. But what if we don't know what the relevant comparison class is? Take the adjective *tall*: if I tell you John is a basketball player and he is tall, you probably infer that the comparison class is the superordinate category of all people. Similarly, if I tell you that John is a gymnast and tall, you probably infer that he is short compared to all people. But if I tell you that John is a soccer player and tall/short, you might instead infer that John is tall/short just for the subordinate category of soccer players. In an attempt to formalize the reasoning that goes into this inference, [Tessler et al. (2017)](http://stanford.edu/~mtessler/papers/Tessler2017-cogsci-submitted.pdf) augment the basic adjectives model to include uncertainty about the relevant comparison class: superordinate (e.g., compared to all people) or subordinate (e.g., compared to gymnasts or soccer players or basketball players).
 
-This reasoning depends crucially on our prior knowledge about the relevant categories. To model this knowledge, we'll need to intelligently simulate various categories: the heights of all people, the heights of gymnasts, the heights of soccer players, and the heights of basketball players.
-
-~~~~
-// helper function
-var exp = function(x){return Math.exp(x)}
-
-// for discretization
-var binParam = 5;
-
-// information about the superordinate category prior
-// e.g., the height distribution for all people
-var superordinate = {mu: 0, sigma: 1};
-
-// calculate the range in pre-defined steps;
-// these values correspond to possible heights
-var stateVals = _.range(superordinate.mu - 3 * superordinate.sigma,
-          superordinate.mu + 3 * superordinate.sigma,
-          superordinate.sigma/binParam)
-
-// for each possible height, calculate its probability of occurrence
-var stateProbs = cache(function(stateParams){
-  return map(function(s){
-    exp(Gaussian(stateParams).score(s))
-  }, stateVals)
-});
-
-// generate a statePrior using the possible heights and their probabilities
-var generateStatePrior = cache(function(stateParams) {
-  return Infer({
-    model: function(){
-      return categorical({vs: stateVals, ps: stateProbs(stateParams)})
-    }
-  })
-});
-
-// information about the subordinate category priors
-var subParams = {
-  low: {mu: -1, sigma: 0.5}, // gymnast heights
-  middle: {mu: 0, sigma: 0.5}, // soccer player heights
-  high: {mu: 1, sigma: 0.5} // basketball player heights
-}
-
-display("hypothetical height prior for all people")
-viz.density(generateStatePrior(superordinate))
-display("hypothetical height prior for gymnasts")
-viz.density(generateStatePrior(subParams["low"]))
-display("hypothetical height prior for soccer players")
-viz.density(generateStatePrior(subParams["middle"]))
-display("hypothetical height prior for basketball players")
-viz.density(generateStatePrior(subParams["high"]))
-
-~~~~
-
-> **Exercise**: Try altering the `subParams` to generate different subordinate category priors.
-
-We can add these state priors to the basic adjectives model, together with a lifted variable concerning the comparison class. Now, the pragmatic listener $$L_1$$ is told the relevant subordinate category (e.g., *John is a basketball player*) and hears the utterance with the scalar adjective (i.e., *John is tall*). On the basis of this information, $$L_1$$ jointly infers the state (i.e., John's height) and the relevant comparison class the speaker intended (e.g., *tall for all people* vs. *tall for a basketball player*).
+This reasoning depends crucially on our prior knowledge about the relevant categories. To model this knowledge, we'll need to intelligently simulate various categories: the heights of all people, the heights of gymnasts, the heights of soccer players, and the heights of basketball players.We can add these state priors to the basic adjectives model, together with a lifted variable concerning the comparison class. Now, the pragmatic listener $$L_1$$ is told the relevant subordinate category (e.g., *John is a basketball player*) and hears the utterance with the scalar adjective (i.e., *John is tall*). On the basis of this information, $$L_1$$ jointly infers the state (i.e., John's height) and the relevant comparison class the speaker intended (e.g., *tall for all people* vs. *tall for a basketball player*).
 
 
-~~~~
-///fold:
-// helper function
-var exp = function(x){return Math.exp(x)}
+```python
+from memo import memo, domain
+import jax
+import jax.numpy as jnp
+import matplotlib.pyplot as plt
+from jax.scipy.stats import norm
+from enum import IntEnum
 
-// for discretization
-var binParam = 3;
+# Discretization parameter
+bin_param = 3
 
-// information about the superordinate category prior
-// e.g., the height distribution for all people
-var superordinate_params = {mu: 0, sigma: 1};
+# Information about the superordinate category prior
+# e.g., the height distribution for all people
+params = jnp.array([
+  [1, 0.5], # subordinate [mu, sigma]
+  [0, 1]    # superordinate [mu, sigma]
+])
 
-// calculate the range in pre-defined steps;
-// these values correspond to possible heights
-var stateVals = _.range(superordinate_params.mu - 3 * superordinate_params.sigma,
-                        superordinate_params.mu + 3 * superordinate_params.sigma,
-                        superordinate_params.sigma/binParam)
-
-// for each possible height, calculate its probability of occurrence
-var stateProbs = cache(function(stateParams){
-  return map(function(s){
-    exp(Gaussian(stateParams).score(s))
-  }, stateVals)
-});
-
-// generate a statePrior using the possible heights and their probabilities
-var generateStatePrior = cache(function(stateParams) {
-  return Infer({
-    model: function(){
-      return categorical({vs: stateVals, ps: stateProbs(stateParams)})
-    }
-  })
-});
-
-// generate the uniform threshold prior
-var thresholdBins ={
-  positive: map(function(x){
-    return  x - (1/(binParam*2));
-  }, sort(stateVals)),
-  negative: map(function(x){
-    return  x + (1/(binParam*2));
-  }, sort(stateVals))
-};
-
-var thresholdPrior = cache(function(form){
-  return Infer({
-    model: function() { return uniformDraw(thresholdBins[form]) }
-  });
-});
-///
-
-// information about the superordinate category priors
-var subParams = {
-  gymnasts: {mu: -1, sigma: 0.5}, // gymnast heights
-  soccerPlayers: {mu: 0, sigma: 0.5}, // soccer player heights
-  basketballPlayers: {mu: 1, sigma: 0.5} // basketball player heights
-}
-
-// possible utterances can be either positive (tall) or negative (short) or a null utterance
-var utterances = ["tall", "short", "silence"]
-
-// meaning function for utterances
-var meaning = function(utterance, state, thresholds) {
-  utterance == "tall" ? state > thresholds.tall :
-  utterance == "short" ? state < thresholds.short :
-  true
-}
-
-// assume a uniform prior over comparison classes
-var classPrior = Infer({
-  model: function(){return uniformDraw(["subordinate", "superordinate"])}
-});
-
-// set speaker optimality
-var alpha = 5;
-
-var literalListener = cache(
-  function(utterance, thresholds, comparisonClass) {
-    Infer({model: function(){
-      var StatePrior = generateStatePrior(comparisonClass)
-      var state = sample(StatePrior);
-      var m = meaning(utterance, state, thresholds);
-      condition(m);
-      return state;
-    }})
-  }, 10000 // limit cache size
+# These values correspond to possible heights
+state_vals = jnp.arange(
+    params[1,0] - 3 * params[1,1],
+    params[1,0] + 3 * params[1,1] + 0.1,
+    params[1,1] / bin_param
 )
 
-var speaker1 = cache(
-  function(state, thresholds, comparisonClass) {
-    Infer({model: function(){
-      var utterance = uniformDraw(utterances);
-      var L0 = literalListener(utterance, thresholds, comparisonClass);
-      factor( alpha * L0.score(state) );
-      return utterance;
-    }})
-  }, 10000 // limit cache size
-)
-
-var pragmaticListener = cache(function(utterance, subordinate_params) {
-  Infer({model: function(){
-
-    var statePrior = generateStatePrior(subordinate_params);
-    var state = sample(statePrior);
-    // separate thresholds for positive adjective and negative adjective
-    var thresholds = {
-      tall: sample(thresholdPrior("positive")),
-      short: sample(thresholdPrior("negative"))
-    }
-
-    // uncertainty about the comparison class (superordinate vs. subordinate)
-    var c = sample(classPrior)
-    var comparisonClass = c == "subordinate" ? subordinate_params : superordinate_params
-
-    var S1 = speaker1(state, thresholds, comparisonClass);
-    observe(S1, utterance);
-
-    return { comparisonClass: c, state : state }
-  }})
-}, 10000 // limit cache size
-                             )
-
-// the possible experiment conditions:
-// you hear that someone is a member of a subordinate category
-// then you are told that they are tall/short;
-// the task is to figure out the implicit comparison class
-var exptConditions = [
-  {utt: "tall", sub: "basketballPlayers"},
-  {utt: "short", sub: "basketballPlayers"},
-  {utt: "tall", sub: "soccerPlayers"},
-  {utt: "short", sub: "soccerPlayers"},
-  {utt: "tall",  sub: "gymnasts"},
-  {utt: "short", sub: "gymnasts"}
-];
-
-// generate structure predictions by mapping through the experiment conditions
-var L1predictions = map(function(stim){
-  var L1posterior = pragmaticListener(stim.utt, subParams[stim.sub])
-  return {
-    utterance: stim.utt,
-    "P(superordinate comparison class)": exp(marginalize(L1posterior, "comparisonClass").score("superordinate")),
-    "subordinate category": stim.sub,
-    model: "L1"
-  }
-}, exptConditions)
-
-display("the basketball player is tall")
-display("--> height = " + expectation(marginalize(pragmaticListener("tall",{mu: 1, sigma: 0.5}), "state")))
-display("the basketball player is short")
-display("--> height = " + expectation(marginalize(pragmaticListener("short",{mu: 1, sigma: 0.5}), "state")))
-
-display("probability of superordinate comparison class (i.e., tall for all people)")
-viz.bar(L1predictions, {groupBy: "subordinate category"})
-~~~~
+thresh_vals = jnp.array([
+  state_vals - (1 / (bin_param * 2)),
+  (state_vals) + (1 / (bin_param * 2)),
+])
 
 
+# Define domains
+S = jnp.arange(len(state_vals))
+T = jnp.arange(len(state_vals))
 
- While these "lifted-variable" RSA models do not model semantic composition directly, they do capture its effect on utterance interpretations, which allows us to more precisely identify and investigate the factors that ought to push interpretations around. In other words, these models open up semantics to the purview of computational and experimental pragmatics; and by formalizing and thereby isolating the contributions of pragmatics, we may more accurately access the semantics.
+class U(IntEnum):
+    TALL = 0
+    SHORT = 1
+    SILENCE = 2
+
+class CC(IntEnum):
+    SUB = 0
+    SUPER = 1
+
+@jax.jit
+def state_pmf(s, cc):
+    return norm.pdf(state_vals[s], params[cc,0], params[cc,1])
+
+@jax.jit
+def meaning(u, s, t1, t2):
+    return jnp.array([
+        state_vals[s] > thresh_vals[u,t1],  # TALL
+        state_vals[s] < thresh_vals[u,t2],  # SHORT
+        True                                # SILENCE
+    ])[u]
+
+
+@memo
+def L0[_u: U, _t1: T, _t2: T, _cc: CC, _s: S]():
+    listener: knows(_u, _t1, _t2, _cc)
+    listener: chooses(s in S, wpp=state_pmf(s, _cc) * meaning(_u, s, _t1, _t2))
+    return Pr[listener.s == _s] 
+
+@memo
+def S1[_s: S, _t1: T, _t2: T, _cc: CC, _u: U](alpha):
+    speaker: knows(_s, _t1, _t2, _cc)
+    speaker: chooses(u in U, wpp=exp(alpha * log(L0[u, _t1, _t2, _cc, _s]())))
+    return Pr[speaker.u == _u] 
+
+@memo
+def L1[_u: U, _s: S](alpha):
+    listener: knows(_s)
+    listener: thinks[
+        speaker: given(s in S, wpp=state_pmf(s, 0)),
+        speaker: given(t1 in T, wpp=1),  # uniform prior over thresholds
+        speaker: given(t2 in T, wpp=1),  # uniform prior over thresholds
+        speaker: given(cc in CC, wpp=1),
+        speaker: chooses(u in U, wpp=S1[s, t1, t2, cc, u](alpha))
+    ]
+    listener: observes [speaker.u] is _u
+    return listener[Pr[speaker.s == _s]]
+
+(L1(1)[:, :] * state_vals).sum(axis=1) # TALL
+```
+{: data-executable="true" data-thebe-executable="true"}
+
+While these "lifted-variable" RSA models do not model semantic composition directly, they do capture its effect on utterance interpretations, which allows us to more precisely identify and investigate the factors that ought to push interpretations around. In other words, these models open up semantics to the purview of computational and experimental pragmatics; and by formalizing and thereby isolating the contributions of pragmatics, we may more accurately access the semantics.
