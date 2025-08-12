@@ -265,24 +265,25 @@ bin_param = 3
 # Information about the superordinate category prior
 # e.g., the height distribution for all people
 params = jnp.array([
-  [1, 0.5], # subordinate [mu, sigma]
-  [0, 1]    # superordinate [mu, sigma]
+  [1, 0.5], # basketball player height [mu, sigma]
+  [0, 1]    # superordinate height [mu, sigma]
 ])
 
-# These values correspond to possible heights
+# Define distribution over possible heights
 state_vals = jnp.arange(
     params[1,0] - 3 * params[1,1],
     params[1,0] + 3 * params[1,1] + 0.1,
     params[1,1] / bin_param
 )
 
+# Define a set of possible thresholds
 thresh_vals = jnp.array([
   state_vals - (1 / (bin_param * 2)),
   (state_vals) + (1 / (bin_param * 2)),
 ])
 
-
-# Define domains
+# Define domains for states, thresholds, 
+# utterances, and comparison classes
 S = jnp.arange(len(state_vals))
 T = jnp.arange(len(state_vals))
 
@@ -295,10 +296,12 @@ class CC(IntEnum):
     SUB = 0
     SUPER = 1
 
+# Assume state is normally distributed
 @jax.jit
 def state_pmf(s, cc):
     return norm.pdf(state_vals[s], params[cc,0], params[cc,1])
 
+# Threshold semantics
 @jax.jit
 def meaning(u, s, t1, t2):
     return jnp.array([
@@ -307,33 +310,33 @@ def meaning(u, s, t1, t2):
         True                                # SILENCE
     ])[u]
 
+@memo
+def L0[u: U, t1: T, t2: T, cc: CC, s: S]():
+    listener: knows(u, t1, t2, cc)
+    listener: chooses(s in S, wpp=state_pmf(s, cc) * meaning(u, s, t1, t2))
+    return Pr[listener.s == s] 
 
 @memo
-def L0[_u: U, _t1: T, _t2: T, _cc: CC, _s: S]():
-    listener: knows(_u, _t1, _t2, _cc)
-    listener: chooses(s in S, wpp=state_pmf(s, _cc) * meaning(_u, s, _t1, _t2))
-    return Pr[listener.s == _s] 
+def S1[s: S, t1: T, t2: T, cc: CC, u: U](alpha):
+    speaker: knows(s, t1, t2, cc)
+    speaker: chooses(u in U, wpp=exp(alpha * log(L0[u, t1, t2, cc, s]())))
+    return Pr[speaker.u == u] 
 
 @memo
-def S1[_s: S, _t1: T, _t2: T, _cc: CC, _u: U](alpha):
-    speaker: knows(_s, _t1, _t2, _cc)
-    speaker: chooses(u in U, wpp=exp(alpha * log(L0[u, _t1, _t2, _cc, _s]())))
-    return Pr[speaker.u == _u] 
-
-@memo
-def L1[_u: U, _s: S](alpha):
-    listener: knows(_s)
+def L1[u: U, s: S](alpha):
+    listener: knows(s)
     listener: thinks[
         speaker: given(s in S, wpp=state_pmf(s, 0)),
-        speaker: given(t1 in T, wpp=1),  # uniform prior over thresholds
-        speaker: given(t2 in T, wpp=1),  # uniform prior over thresholds
+        speaker: given(t1 in T, wpp=1),  # uniform prior over 'short' threshold
+        speaker: given(t2 in T, wpp=1),  # uniform prior over 'long' threshold
         speaker: given(cc in CC, wpp=1),
         speaker: chooses(u in U, wpp=S1[s, t1, t2, cc, u](alpha))
     ]
-    listener: observes [speaker.u] is _u
-    return listener[Pr[speaker.s == _s]]
+    listener: observes [speaker.u] is u
+    return listener[Pr[speaker.s == s]]
 
-(L1(1)[:, :] * state_vals).sum(axis=1) # TALL
+# get expected value of height for each utterance
+(L1(1)[:, :] * state_vals).sum(axis=1) 
 ```
 {: data-executable="true" data-thebe-executable="true"}
 
