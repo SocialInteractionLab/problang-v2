@@ -1,4 +1,4 @@
-name: probLang-memo
+name: problang-v2
 channels:
   - conda-forge
   - defaults

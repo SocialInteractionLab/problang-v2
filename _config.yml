@@ -1,8 +1,8 @@
 # Site settings
 title: ProbLang v2
 description: "Computational Models of Pragmatic Reasoning"
-baseurl: "/probLang-memo" # the subpath of your site, e.g. /blog
-url: "https://hawkrobe.github.io" # the base hostname & protocol for your site
+baseurl: "/problang-v2" # the subpath of your site, e.g. /blog
+url: "https://socialinteractionlab.github.io" # the base hostname & protocol for your site
 
 # Build settings
 markdown: kramdown

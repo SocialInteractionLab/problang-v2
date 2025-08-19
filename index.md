@@ -43,7 +43,7 @@ The course employs `memo`, a modern probabilistic programming language designed 
 
 ## Citation
 
-[Robert D. Hawkins]. ProbLang v2: A Computational Approach to Pragmatic Reasoning. Retrieved from https://hawkrobe.github.io/probLang-memo.
+[Robert D. Hawkins]. ProbLang v2: Computational Models of Pragmatic Language Use in `memo`. Retrieved from https://problang.stanford.edu
 
 *Based on the original [Probabilistic Language Understanding](https://www.problang.org/) by G. Scontras, M. H. Tessler, and M. Franke.*
 

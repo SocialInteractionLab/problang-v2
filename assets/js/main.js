@@ -3,7 +3,7 @@
 
 // Github links
 
-var github_repository = "https://github.com/hawkrobe/probLang-memo/";
+var github_repository = "https://github.com/SocialInteractionLab/ProbLang"
 
 function markdown_url(page_url) {
     return page_url.slice(0, -4) + "md";
@@ -132,7 +132,7 @@ function format_refp(citation) {
 }
 
 
-$.get("/probLang-memo/bibliography.bib", function (bibtext) {
+$.get("/problang-v2/bibliography.bib", function (bibtext) {
     $(function () {
         var bibs = doParse(bibtext);
         $.each(

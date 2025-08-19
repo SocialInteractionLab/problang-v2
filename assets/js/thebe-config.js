@@ -8,7 +8,7 @@ $(document).ready(function() {
     const thebeConfig = {
         requestKernel: true,
         binderOptions: {
-            repo: "hawkrobe/probLang-memo",
+            repo: "SocialInteractionLab/ProbLang"
             ref: "main",
             binderUrl: "https://mybinder.org"
         },
