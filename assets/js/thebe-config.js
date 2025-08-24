@@ -8,7 +8,7 @@ $(document).ready(function() {
     const thebeConfig = {
         requestKernel: true,
         binderOptions: {
-            repo: "SocialInteractionLab/ProbLang",
+            repo: "SocialInteractionLab/problang-v2",
             ref: "main",
             binderUrl: "https://mybinder.org"
         },
