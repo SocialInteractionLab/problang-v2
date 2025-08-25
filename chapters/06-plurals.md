@@ -11,25 +11,124 @@ Our models so far have focused on identifying singular states of the world: a si
 We begin with some knowledge about the world, which contains objects (which have their own properties, e.g., weights). The `statePrior` recursively generates states with the appropriate number of objects; each state corresponds to a plurality.
 
 ~~~~
-// possible object weights
-var objects = [2,3,4];
-var objectPrior = function() {
-  uniformDraw(objects);
-}
+import jax
+import jax.numpy as jnp
+from memo import memo, domain
+from enum import IntEnum
+from jax.scipy.special import erf
 
-var numberObjects = 3
+# possible object weights
+Weight = jnp.array([2, 3, 4])
+n_objects = 3
+print(jnp.broadcast_to(Weight, (n_objects, 3)))
 
-// build states with n many objects
-var statePrior = function(nObjLeft,stateSoFar) {
-  var stateSoFar = stateSoFar == undefined ? [] : stateSoFar
-  if (nObjLeft == 0) {
-    return stateSoFar
-  } else {
-    var newObj = objectPrior()
-    var newState = stateSoFar.concat([newObj])
-    return statePrior(nObjLeft - 1,newState)
-  }
-}
+class U(IntEnum):
+  NULL = 0
+  HEAVY = 1
+  EACHHEAVY = 2
+  TOGETHERHEAVY = 3
+
+@jax.jit
+State = jnp.transpose(jnp.meshgrid(Weight, indexing='ij'),
+	                  jnp.roll(jnp.arange(N + 1), -1)).reshape(-1, N)
+
+# build states with n many objects
+@jax.jit
+def state_prior(n_obj_left, state_so_far):
+  state_so_far = jnp.array([]) if state_so_far is None else state_so_far
+  if n_obj_left == 0:
+    return state_so_far
+  else:
+    new_obj = object_prior()
+    new_state = jnp.concatenate([state_so_far, jnp.array([new_obj])])
+    return state_prior(n_obj_left - 1, new_state)
+
+# threshold priors
+@jax.jit
+def dist_theta_prior():
+  return jnp.random.choice(objects) - 1  # 1 minus possible object values
+
+@jax.jit
+def coll_theta_prior():
+  return jnp.sum(state_prior(number_objects)) - 1  # 1 minus possible state sums
+
+# noise variance
+@jax.jit
+def get_noise_variance():
+  return jnp.where(collective_noise == "0-no", 0.01,
+                   jnp.where(collective_noise == "1-low", 1.0,
+                             jnp.where(collective_noise == "2-mid", 2.0, 3.0)))
+
+
+# costs: null < ambiguous < unambiguous
+@jax.jit
+def utterance_prior():
+  return jnp.random.choice(utterances)
+
+@jax.jit
+def cost(utterance):
+  return jnp.where(utterance == 0, 0.0,
+                   jnp.where(utterance == 1, 1.0, 2.0))
+
+# x > theta interpretations
+@jax.jit
+def coll_interpretation(state, coll_theta, noise):
+  weight = 1 - (0.5 * (1 + erf((coll_theta - jnp.sum(state)) / 
+                               (noise * jnp.sqrt(2)))))
+  return jnp.random.bernoulli(weight)
+
+@jax.jit
+def dist_interpretation(state, dist_theta):
+  return jnp.all(state > dist_theta)
+
+# meaning function
+@jax.jit
+def meaning(utt, state, dist_theta, coll_theta, is_collective, noise):
+  return jnp.where(utt == 0, True,
+                   jnp.where(utt == 2, dist_interpretation(state, dist_theta),
+                             jnp.where(utt == 3, coll_interpretation(state, coll_theta, noise),
+                                       jnp.where(is_collective, coll_interpretation(state, coll_theta, noise),
+                                                 dist_interpretation(state, dist_theta)))))
+
+alpha = 10.0
+
+# literal listener
+@memo
+def L0[u: U, td: T, tc: T, i: I, s: S]():
+  listener: given(n in N), wpp=1)
+  listener: given(s in S), wpp=state_prior(s) * meaning(s, td, tc, i, n))
+  return Pr[listener.s == s]
+
+# speaker
+@memo
+def speaker[_state: domain(objects=number_objects), _dist_theta: jnp.array, _coll_theta: jnp.array, _is_collective: jnp.array]():
+  speaker: given(utterance in utterances, wpp=1)
+  speaker: factor(alpha * (jnp.log(literal(speaker.utterance, _dist_theta, _coll_theta, _is_collective)) - 
+                           cost(speaker.utterance)))
+  return Pr[speaker.utterance == _utterance]
+
+# listener
+@memo
+def listener[_utterance: utterances]():
+  listener: given(state in domain(objects=number_objects), wpp=1)
+  listener: given(is_collective in domain(collective=jnp.array([True, False])), wpp=jnp.array([0.8, 0.2]))
+  listener: given(dist_theta in domain(theta=objects), wpp=1)
+  listener: given(coll_theta in domain(theta=jnp.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])), wpp=1)
+  listener: observes speaker(listener.state, listener.dist_theta, listener.coll_theta, listener.is_collective) == _utterance
+  return Pr[listener.is_collective == True, listener.state == _state]
+
+# test the model
+conditions = [
+    {"noise": "0-no"},
+    {"noise": "1-low"},
+    {"noise": "2-mid"},
+    {"noise": "3-high"},
+]
+
+# This would need to be adapted based on how memo handles the results
+# For now, just calling the function
+result = listener(1)[]
+print("Model result:", result)
 ~~~~
 
 > **Exercise:** Visualize the state prior.
