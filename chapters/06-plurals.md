@@ -18,117 +18,88 @@ from enum import IntEnum
 from jax.scipy.special import erf
 
 # possible object weights
-Weight = jnp.array([2, 3, 4])
+weights = jnp.array([2, 3, 4])
 n_objects = 3
-print(jnp.broadcast_to(Weight, (n_objects, 3)))
+noise =  3
 
 class U(IntEnum):
   NULL = 0
-  HEAVY = 1
-  EACHHEAVY = 2
-  TOGETHERHEAVY = 3
+  EACHHEAVY = 1
+  TOGETHERHEAVY = 2
+  HEAVY = 3
+
+class I(IntEnum):
+  DISTRIBUTIVE = 0
+  COLLECTIVE = 1
+
+w = list(jnp.broadcast_to(weights, (n_objects, len(weights))))
+states = jnp.transpose(jnp.array(jnp.meshgrid(*w))).reshape(-1, n_objects)
+S = jnp.arange(len(states))
+
+theta_dist = weights - 1
+theta_coll = jnp.unique(jnp.sum(states, axis=1)) - 1
+TD = jnp.arange(len(theta_dist))
+TC = jnp.arange(len(theta_coll))
 
 @jax.jit
-State = jnp.transpose(jnp.meshgrid(Weight, indexing='ij'),
-	                  jnp.roll(jnp.arange(N + 1), -1)).reshape(-1, N)
-
-# build states with n many objects
-@jax.jit
-def state_prior(n_obj_left, state_so_far):
-  state_so_far = jnp.array([]) if state_so_far is None else state_so_far
-  if n_obj_left == 0:
-    return state_so_far
-  else:
-    new_obj = object_prior()
-    new_state = jnp.concatenate([state_so_far, jnp.array([new_obj])])
-    return state_prior(n_obj_left - 1, new_state)
-
-# threshold priors
-@jax.jit
-def dist_theta_prior():
-  return jnp.random.choice(objects) - 1  # 1 minus possible object values
+def collective_meaning(state, theta):
+    return 1 - (0.5 * (1 + erf((theta - jnp.sum(state)) / 
+                              (noise * jnp.sqrt(2)))))
 
 @jax.jit
-def coll_theta_prior():
-  return jnp.sum(state_prior(number_objects)) - 1  # 1 minus possible state sums
-
-# noise variance
+def distributive_meaning(state, theta):
+    return jnp.all(state > theta)
+    
 @jax.jit
-def get_noise_variance():
-  return jnp.where(collective_noise == "0-no", 0.01,
-                   jnp.where(collective_noise == "1-low", 1.0,
-                             jnp.where(collective_noise == "2-mid", 2.0, 3.0)))
-
-
-# costs: null < ambiguous < unambiguous
-@jax.jit
-def utterance_prior():
-  return jnp.random.choice(utterances)
-
-@jax.jit
-def cost(utterance):
-  return jnp.where(utterance == 0, 0.0,
-                   jnp.where(utterance == 1, 1.0, 2.0))
-
-# x > theta interpretations
-@jax.jit
-def coll_interpretation(state, coll_theta, noise):
-  weight = 1 - (0.5 * (1 + erf((coll_theta - jnp.sum(state)) / 
-                               (noise * jnp.sqrt(2)))))
-  return jnp.random.bernoulli(weight)
+def meaning(u, s, dt, ct, i) :
+    return jnp.array([
+        True,                                            # SILENCE
+        distributive_meaning(states[s], theta_dist[dt]), # EACHHEAVY
+        collective_meaning(states[s], theta_coll[ct]),   # TOGETHERHEAVY
+        jnp.where(i,                                     # HEAVY (ambiguous)
+            collective_meaning(states[s], theta_coll[ct]),
+            distributive_meaning(states[s], theta_dist[dt])
+        ),
+    ])[u]
 
 @jax.jit
-def dist_interpretation(state, dist_theta):
-  return jnp.all(state > dist_theta)
+def cost(u):
+    return jnp.array([0, 2, 2, 1])[u]
 
-# meaning function
-@jax.jit
-def meaning(utt, state, dist_theta, coll_theta, is_collective, noise):
-  return jnp.where(utt == 0, True,
-                   jnp.where(utt == 2, dist_interpretation(state, dist_theta),
-                             jnp.where(utt == 3, coll_interpretation(state, coll_theta, noise),
-                                       jnp.where(is_collective, coll_interpretation(state, coll_theta, noise),
-                                                 dist_interpretation(state, dist_theta)))))
-
-alpha = 10.0
-
-# literal listener
 @memo
-def L0[u: U, td: T, tc: T, i: I, s: S]():
-  listener: given(n in N), wpp=1)
-  listener: given(s in S), wpp=state_prior(s) * meaning(s, td, tc, i, n))
-  return Pr[listener.s == s]
+def L0[u: U, td: TD, tc: TC, i: I, s: S]():
+    listener: knows(u, td, tc, i)
+    listener: given(s in S, wpp= meaning(u, s, td, tc, i))
+    return Pr[listener.s == s] 
 
-# speaker
 @memo
-def speaker[_state: domain(objects=number_objects), _dist_theta: jnp.array, _coll_theta: jnp.array, _is_collective: jnp.array]():
-  speaker: given(utterance in utterances, wpp=1)
-  speaker: factor(alpha * (jnp.log(literal(speaker.utterance, _dist_theta, _coll_theta, _is_collective)) - 
-                           cost(speaker.utterance)))
-  return Pr[speaker.utterance == _utterance]
+def S1[s: S, td: TD, tc: TC, i: I, u: U](alpha): 
+    speaker: knows(s, td, tc, i)
+    speaker: chooses(u in U, wpp= 
+      exp(alpha * (log(L0[u, td, tc, i, s]()) - cost(u)))
+    )
+    return Pr[speaker.u == u]
 
-# listener
 @memo
-def listener[_utterance: utterances]():
-  listener: given(state in domain(objects=number_objects), wpp=1)
-  listener: given(is_collective in domain(collective=jnp.array([True, False])), wpp=jnp.array([0.8, 0.2]))
-  listener: given(dist_theta in domain(theta=objects), wpp=1)
-  listener: given(coll_theta in domain(theta=jnp.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])), wpp=1)
-  listener: observes speaker(listener.state, listener.dist_theta, listener.coll_theta, listener.is_collective) == _utterance
-  return Pr[listener.is_collective == True, listener.state == _state]
+def L1[u: U, s: S, i: I](alpha) :
+    listener: knows(s, i)
+    listener: thinks[
+        speaker: given(s in S, wpp= 1),
+        speaker: given(td in TD, wpp=1),
+        speaker: given(tc in TC, wpp=1),
+        speaker: given(i in I, wpp=0.8 if i == {I.COLLECTIVE} else 0.2),
+        speaker: chooses(u in U, wpp=S1[s, td, tc, i, u](alpha))
+    ]
+    listener: observes [speaker.u] is u
+    return listener[Pr[speaker.s == s, speaker.i == i]]
 
-# test the model
-conditions = [
-    {"noise": "0-no"},
-    {"noise": "1-low"},
-    {"noise": "2-mid"},
-    {"noise": "3-high"},
-]
+# print(list(zip(State,
+#     L0()[U.HEAVY, 2, 3, 1, :])))
 
-# This would need to be adapted based on how memo handles the results
-# For now, just calling the function
-result = listener(1)[]
-print("Model result:", result)
+# list(zip(State,
+#     L1(1)[U.HEAVY, :, :].sum(axis=1)))
+
+print('p(collective) = ', L1(10)[U.HEAVY, :, :].sum(axis=0)[1])
 ~~~~
 
 > **Exercise:** Visualize the state prior.
