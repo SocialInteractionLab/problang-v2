@@ -68,7 +68,7 @@ function formatCitationForDisplay(citation) {
 }
 
 // Load and display bibliography
-$.get("/probLang-memo/bibliography.bib", function (bibtext) {
+$.get("/problang-v2/bibliography.bib", function (bibtext) {
     var bibs = doParse(bibtext);
     var citationEntries = [];
     

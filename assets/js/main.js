@@ -3,7 +3,7 @@
 
 // Github links
 
-var github_repository = "https://github.com/SocialInteractionLab/ProbLang"
+var github_repository = "https://github.com/SocialInteractionLab/problang-v2"
 
 function markdown_url(page_url) {
     return page_url.slice(0, -4) + "md";
