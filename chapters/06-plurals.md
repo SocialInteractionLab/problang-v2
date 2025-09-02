@@ -101,6 +101,7 @@ def L1[u: U, s: S, i: I](alpha) :
 
 print('p(collective) = ', L1(10)[U.HEAVY, :, :].sum(axis=0)[1])
 ~~~~
+{: data-executable="true" data-thebe-executable="true"}
 
 > **Exercise:** Visualize the state prior.
 
