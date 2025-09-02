@@ -125,254 +125,114 @@ This model was designed to account for the possible noise in our estimation of c
 You might have guessed that we are dealing with a lifted-variable variant of RSA: the various interpretation parameters (i.e., `distTheta`, `collTheta`, and `isCollective`) get resolved at the level of the pragmatic listener:
 
 
-<!-- > **Exercise:** Copy the code from the literal listener code box above, add in a `speaker` layer, and generate predictions from the pragmatic `listener`. -->
-
-
 The full model combines all of these ingredients in the RSA framework, with recursive reasoning about the likely state of the world:
 
 > **Exercise:** Generate predictions from the $$S_1$$ speaker.
 
-Finally, we add in a speaker knowledge manipulation: the speaker either has full access to the individual weights in the world state (i.e., `knowledge == true`), or the speaker only has access to the total weight of the world state (i.e., `knowledge == false`). On the basis of this knowledge, the speaker makes an observation of the world state, and generates a belief distribution of the states that could have led to the observation.
+Finally, we add in a speaker knowledge manipulation: the speaker either has full access to the individual weights in the world state (i.e., `knowledge == true`), or the speaker only has access to the total weight of the world state (i.e., `knowledge == false`). On the basis of this knowledge, the speaker makes an observation of the world state, and generates a belief distribution of the states that could have led to the observation. The full model includes this belief manipulation so that the pragmatic listener takes into account the speaker's knowledge state while interpreting the speaker's utterance.
 
 ~~~~
+import jax
+import jax.numpy as jnp
+from memo import memo, domain
+from enum import IntEnum
+from jax.scipy.special import erf
 
+n_objects = 3
+noise =  0.01
 
-// check array identity
-var arraysEqual = function(a1,a2) {
-  return JSON.stringify(a1)==JSON.stringify(a2);
-}
+# possible object weights
+weights = jnp.array([2, 3, 4])
 
-// possible object weights
-var objects = [2,3,4];
-var objectPrior = function() {
-  uniformDraw(objects);
-}
+class A(IntEnum):
+  FULLOBS = 0
+  SUMONLY = 1
 
-var numberObjects = 3
+class U(IntEnum):
+  NULL = 0
+  EACHHEAVY = 1
+  TOGETHERHEAVY = 2
+  HEAVY = 3
 
-// build states with n many objects
-var statePrior = function(nObjLeft,stateSoFar) {
-  var stateSoFar = stateSoFar == undefined ? [] : stateSoFar
-  if (nObjLeft == 0) {
-    return stateSoFar
-  } else {
-    var newObj = objectPrior()
-    var newState = stateSoFar.concat([newObj])
-    return statePrior(nObjLeft - 1,newState)
-  }
-}
+class I(IntEnum):
+  DISTRIBUTIVE = 0
+  COLLECTIVE = 1
 
-var speakerBelief = cache(function(state,speakerKnows) {
-  return Infer({model: function(){
-    var obs = function(s) {
-      return speakerKnows ? s : sum(s) 
-    }
-    var bState = statePrior(numberObjects)
-    condition(arraysEqual(obs(bState),obs(state)))
-    return bState
-  }})
-})
+w = list(jnp.broadcast_to(weights, (n_objects, len(weights))))
+states = jnp.transpose(jnp.array(jnp.meshgrid(*w))).reshape(-1, n_objects)
+S = jnp.arange(len(states))
 
-~~~~
+theta_dist = weights - 1
+theta_coll = jnp.unique(jnp.sum(states, axis=1)) - 1
+TD = jnp.arange(len(theta_dist))
+TC = jnp.arange(len(theta_coll))
 
-> **Exercise:** Try out the `speakerBelief` function---how does it work?
+@jax.jit
+def collective_meaning(state, theta):
+    return 1 - (0.5 * (1 + erf((theta - jnp.sum(state)) / 
+                              (noise * jnp.sqrt(2)))))
 
-The full model includes this belief manipulation so that the pragmatic listener takes into account the speaker's knowledge state while interpreting the speaker's utterance.
+@jax.jit
+def distributive_meaning(state, theta):
+    return jnp.all(state > theta)
+    
+@jax.jit
+def meaning(u, s, dt, ct, i) :
+    return jnp.array([
+        True,                                            # SILENCE
+        distributive_meaning(states[s], theta_dist[dt]), # EACHHEAVY
+        collective_meaning(states[s], theta_coll[ct]),   # TOGETHERHEAVY
+        jnp.where(i,                                     # HEAVY (ambiguous)
+            collective_meaning(states[s], theta_coll[ct]),
+            distributive_meaning(states[s], theta_dist[dt])
+        ),
+    ])[u]
 
-~~~~
-///fold: 
+@jax.jit
+def cost(u):
+    return jnp.array([0, 2, 2, 1])[u]
 
-// helper functions
-
-// error function
-var erf = function(x) {
-  var a1 =  0.254829592;
-  var a2 = -0.284496736;
-  var a3 =  1.421413741;
-  var a4 = -1.453152027;
-  var a5 =  1.061405429;
-  var p  =  0.3275911;
-  var sign = x < 0 ? -1 : 1
-  var z = Math.abs(x);
-  var t = 1.0/(1.0 + p*z);
-  var y = 1.0 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t*Math.exp(-z*z);
-  var answer = sign*y
-  return answer
-}
-
-// check array identity
-var arraysEqual = function(a1,a2) {
-  return JSON.stringify(a1)==JSON.stringify(a2);
-}
-
-// get probabilities from a distribution
-var distProbs = function(dist, supp) {
-  return map(function(s) {
-    return Math.exp(dist.score(s))
-  }, supp)
-}
-
-// calculate KL divergence between two distributions
-var KL = function(p, q) {
-  var supp = sort(p.support());
-  var P = distProbs(p, supp), Q = distProbs(q, supp);
-  var diverge = function(xp,xq) {
-    return xp == 0 ? 0 : (xp * Math.log(xp / xq) );
-  };
-  return sum(map2(diverge,P,Q));
-};
-
-///
-
-
-// wrapper for plural predication model
-var pluralPredication = function( collectiveNoise,
-                                   knowledge
-                                  ) {
-
-  // possible object weights
-  var objects = [2,3,4];
-  var objectPrior = function() {
-    uniformDraw(objects);
-  }
-
-  var numberObjects = 3
-
-  // build states with n many objects
-  var statePrior = function(nObjLeft,stateSoFar) {
-    var stateSoFar = stateSoFar == undefined ? [] : stateSoFar
-    if (nObjLeft == 0) {
-      return stateSoFar
-    } else {
-      var newObj = objectPrior()
-      var newState = stateSoFar.concat([newObj])
-      return statePrior(nObjLeft - 1,newState)
-    }
-  }
-
-  // threshold priors
-  var distThetaPrior = function(){
-    return (uniformDraw(objects) - 1) // 1 minus possible object values
-  };  
-  var collThetaPrior = function(){
-    return (sum(statePrior(numberObjects)) - 1) // 1 minus possible state sums
-  };
-
-  // noise variance
-  var noiseVariance = collectiveNoise == "0-no" ? 0.01 :
-  collectiveNoise == "1-low" ? 1 :
-  collectiveNoise == "2-mid" ? 2 : 3
-
-  var utterances = [
-    "null",
-    "heavy",
-    "each-heavy",
-    "together-heavy"
-  ];
-
-  // costs: null < ambiguous < unambiguous 
-  var utterancePrior = function() {
-    return uniformDraw(utterances)
-  };
+@jax.jit
+def obseq(s1, s2, a):
+  return jnp.array([
+    s1 == s2,
+    jnp.sum(states[s1]) == jnp.sum(states[s2])
+  ])[a]
   
-  var cost = function(utterance) {
-    utterance == "null" ? 0 :
-    utterance == "heavy" ? 1 :
-    2
-  }
-  
-  // x > theta interpretations
-  var collInterpretation = function(state, collTheta,noise) {
-    var weight = 1 - (0.5 * (1 + erf((collTheta - sum(state)) / 
-                                     (noise * Math.sqrt(2)))))
-    return flip(weight)
-  }
+@memo
+def L0[u: U, td: TD, tc: TC, i: I, s: S]():
+    listener: knows(u, td, tc, i)
+    listener: given(s in S, wpp=meaning(u, s, td, tc, i))
+    return Pr[listener.s == s] + 1e-5
 
-  var distInterpretation = function(state, distTheta) {
-    return all(function(x){x > distTheta}, state)
-  }
+@memo
+def S1[o: S, td: TD, tc: TC, i: I, a: A, u: U](alpha): 
+    speaker: knows(o, a, td, tc, i)
+    speaker: chooses(u in U, wpp=imagine[
+      world: knows(o, a),
+      world: given(s in S, wpp=obseq(s, o, a)),
+      listener: knows(u, td, tc, i),
+      listener: guesses(s in S, wpp=L0[u, td, tc, i, s]()),
+      exp(alpha * (-KL[world.s | listener.s] - cost(u)))
+    ])
+    return Pr[speaker.u == u]
 
-  // meaning function
-  var meaning = function(utt,state,distTheta,collTheta,isCollective,noise) {
-    return  utt == "null" ? true :
-    utt == "each-heavy" ? distInterpretation(state,distTheta) :
-    utt == "together-heavy" ? collInterpretation(state,collTheta,noise) :
-    isCollective ? collInterpretation(state,collTheta,noise) :
-    distInterpretation(state,distTheta)
-  }
+@memo
+def L1[u: U, a: A, i: I, s: S](alpha) :
+    listener: knows(s, a, i)
+    listener: thinks[
+      speaker: knows(a),
+      speaker: given(s in S, wpp= 1),
+      speaker: given(td in TD, wpp=1),
+      speaker: given(tc in TC, wpp=1),
+      speaker: given(i in I, wpp=0.8 if i == {I.COLLECTIVE} else 0.2),
+      speaker: chooses(u in U, wpp=S1[s, td, tc, i, a, u](alpha))
+    ]
+    listener: observes [speaker.u] is u
+    return listener[Pr[speaker.s == s, speaker.i == i]]
 
-  var alpha = 10
-
-  var literal = cache(function(utterance,distThetaPos,collThetaPos,isCollective) {
-    return Infer({model: function(){
-      var state = statePrior(numberObjects);
-      var noise = noiseVariance
-      condition(meaning(utterance,state,distThetaPos,collThetaPos,isCollective,noise));
-      return state;
-    }})
-  });
-
-  var speakerBelief = cache(function(state,speakerKnows) {
-    return Infer({model: function(){
-      var obs = function(s) {
-        return speakerKnows ? s : sum(s) 
-      }
-      var bState = statePrior(numberObjects)
-      condition(arraysEqual(obs(bState),obs(state)))
-      return bState
-    }})
-    })
-  
-
-  var speaker = cache(function(state,distThetaPos,collThetaPos,isCollective,speakerKnows) {
-    return Infer({model: function(){
-      var utterance = utterancePrior()
-      var bDist = speakerBelief(state,speakerKnows)
-      var lDist = literal(utterance,distThetaPos,collThetaPos,isCollective)
-      factor(alpha*(-1 * KL(bDist,lDist) 
-                - cost(utterance))
-            )
-      return utterance
-    }})
-  });
-
-  var listener = cache(function(utterance,speakerKnows) {
-    return Infer({model: function(){
-      var state = statePrior(numberObjects);
-      var isCollective = flip(0.8)
-      var distThetaPos = distThetaPrior();
-      var collThetaPos = collThetaPrior();
-      observe(speaker(state,distThetaPos,collThetaPos,isCollective,speakerKnows),
-              utterance) 
-      return {coll: isCollective, state: state}
-    }});
-  });
-
-  return listener("heavy",knowledge)
-}
-
-var conditions = [
-  {noise : "0-no", knowledge : true},
-  {noise : "0-no", knowledge : false},
-  {noise : "1-low", knowledge : true},
-  {noise : "1-low", knowledge : false},
-  {noise : "2-mid", knowledge : true},
-  {noise : "2-mid", knowledge : false},
-  {noise : "3-high", knowledge : true},
-  {noise : "3-high", knowledge : false},
-]
-
-var L1predictions = map(function(stim) {
-  var L1posterior = pluralPredication(stim.noise,stim.knowledge)
-  return {
-    x: stim.noise,
-    y: Math.exp(marginalize(L1posterior, "coll").score(true)),
-    knowledge: stim.knowledge
-  }
-}, conditions)
-
-viz.bar(L1predictions, {groupBy: 'knowledge'})
-
+print('p(collective | sum-only) = ', L1(10)[U.HEAVY, A.SUMONLY, :, :].sum(axis=1)[1])
+print('p(collective | full) = ', L1(10)[U.HEAVY, A.FULLOBS, :, :].sum(axis=1)[1])
 ~~~~
 
 > **Exercise:**  Add an $$S_2$$ layer to the model.
