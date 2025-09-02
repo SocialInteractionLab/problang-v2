@@ -234,5 +234,6 @@ def L1[u: U, a: A, i: I, s: S](alpha) :
 print('p(collective | sum-only) = ', L1(10)[U.HEAVY, A.SUMONLY, :, :].sum(axis=1)[1])
 print('p(collective | full) = ', L1(10)[U.HEAVY, A.FULLOBS, :, :].sum(axis=1)[1])
 ~~~~
+{: data-executable="true" data-thebe-executable="true"}
 
 > **Exercise:**  Add an $$S_2$$ layer to the model.
