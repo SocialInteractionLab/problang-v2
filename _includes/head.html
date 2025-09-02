@@ -35,25 +35,8 @@
   <!-- ThebeLab Dependencies -->
   <link rel="stylesheet" href="https://unpkg.com/thebe@latest/lib/index.css" />
   <script src="https://unpkg.com/thebe@latest/lib/index.js"></script>
-  <script type="text/x-thebe-config">
-    {
-      requestKernel: true,
-      binderOptions: {
-        repo: "SocialInteractionLab/problang-v2",
-        ref: "main",
-        binderUrl: "https://mybinder.org"
-      },
-      kernelOptions: {
-        name: "python3"
-      },
-      selector: "[data-thebe-executable='true']",
-      mountRunButton: true,
-      mountRunAllButton: false,
-      mountRestartButton: false,
-      mountRestartAllButton: false
-    }
-  </script>
     
   <!-- Main site JavaScript -->
   <script src="{{ "/assets/js/main.js" | prepend: site.baseurl }}"></script>
+  <script src="{{ "/assets/js/thebe-config.js" | prepend: site.baseurl }}"></script>
 </head>
